@@ -54,25 +54,6 @@ struct HomeView: View {
         .overlay {
             if celebrating { celebrationOverlay }
         }
-        .overlay(alignment: .bottomTrailing) {
-            // ホームタブのみ: 新規予定作成のFAB(持ち物タブは自前のFABを持つ)
-            if selectedTab == .home {
-                Button {
-                    Haptics.tap()
-                    planEditTarget = .create
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.anchorHeading(22))
-                        .foregroundStyle(AnchorTheme.moonGlow)
-                        .frame(width: 56, height: 56)
-                        .background(AnchorTheme.accent, in: Circle())
-                        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 20)
-                .padding(.bottom, 24)
-            }
-        }
         .sheet(item: $planEditTarget) { target in
             switch target {
             case .create:

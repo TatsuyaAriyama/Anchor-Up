@@ -33,7 +33,24 @@ struct HeroCard: View {
         .frame(height: 250)
         .clipShape(RoundedRectangle(cornerRadius: AnchorTheme.cornerLarge, style: .continuous))
         .contentShape(Rectangle())
-        .onTapGesture { if plan != nil { onTap() } }
+        // 予定あり: タップで編集 / 空: タップで作成
+        .onTapGesture { plan != nil ? onTap() : onCreate() }
+        // 予定がある時だけ、別の航海を計画する小さな導線をカード左上(夜空側)に置く
+        .overlay(alignment: .topLeading) {
+            if plan != nil {
+                Button(action: onCreate) {
+                    Image(systemName: "plus")
+                        .font(.anchorHeading(14))
+                        .foregroundStyle(AnchorTheme.moonGlow)
+                        .frame(width: 32, height: 32)
+                        .background(AnchorTheme.seaDeep.opacity(0.55), in: Circle())
+                        .overlay(Circle().strokeBorder(AnchorTheme.moonGlow.opacity(0.25), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+                .padding(12)
+                .accessibilityLabel("別の航海を計画")
+            }
+        }
     }
 
     // MARK: - 予定あり
