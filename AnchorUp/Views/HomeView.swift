@@ -194,12 +194,12 @@ struct HomeView: View {
         .onDrop(of: [.text], delegate: LayoutResetDropDelegate(dragging: $draggingSection))
     }
 
-    /// タイルに長押しドラッグ(並び替え)を付与する
+    /// タイルに長押しドラッグ(並び替え)を付与する。
+    /// ドラッグ中は他タイルがリアルタイムに動いて位置を空けるため、
+    /// 元タイルを減光し続けない(減光状態が残って暗いまま固まるのを防ぐ)。
     @ViewBuilder
     private func draggableTile<V: View>(_ kind: HomeSectionKind, @ViewBuilder _ content: () -> V) -> some View {
         content()
-            .opacity(draggingSection == kind ? 0.3 : 1)
-            .scaleEffect(draggingSection == kind ? 0.97 : 1)
             .onDrag {
                 draggingSection = kind
                 Haptics.soft()
