@@ -48,6 +48,8 @@ struct Voyage: Identifiable, Codable, Equatable {
     var completedAt: Date?
     /// 船倉(みんなで分担する共有の持ち物)
     var holdItems: [HoldItem]
+    /// 招待した乗組員のID(航海図で色分け表示される)
+    var memberIDs: [UUID]
 
     init(
         id: UUID = UUID(),
@@ -57,7 +59,8 @@ struct Voyage: Identifiable, Codable, Equatable {
         hasTime: Bool = false,
         linkedKitIDs: [UUID] = [],
         completedAt: Date? = nil,
-        holdItems: [HoldItem] = []
+        holdItems: [HoldItem] = [],
+        memberIDs: [UUID] = []
     ) {
         self.id = id
         self.title = title
@@ -67,6 +70,7 @@ struct Voyage: Identifiable, Codable, Equatable {
         self.linkedKitIDs = linkedKitIDs
         self.completedAt = completedAt
         self.holdItems = holdItems
+        self.memberIDs = memberIDs
     }
 
     /// 出航まで残り日数(過去なら負、当日は 0)
@@ -108,7 +112,7 @@ struct Voyage: Identifiable, Codable, Equatable {
 // holdItems は後から追加したため、旧データでも読めるよう明示デコード
 extension Voyage {
     enum CodingKeys: String, CodingKey {
-        case id, title, destination, date, hasTime, linkedKitIDs, completedAt, holdItems
+        case id, title, destination, date, hasTime, linkedKitIDs, completedAt, holdItems, memberIDs
     }
 
     init(from decoder: Decoder) throws {
@@ -121,6 +125,7 @@ extension Voyage {
         linkedKitIDs = try c.decodeIfPresent([UUID].self, forKey: .linkedKitIDs) ?? []
         completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
         holdItems = try c.decodeIfPresent([HoldItem].self, forKey: .holdItems) ?? []
+        memberIDs = try c.decodeIfPresent([UUID].self, forKey: .memberIDs) ?? []
     }
 }
 

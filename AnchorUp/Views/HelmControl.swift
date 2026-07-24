@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 画面下部の舵輪ナビゲーション。
-/// 回すと90°ごとにデテントが効いてタブが切り替わる。
+/// 回すと1コマ(360°÷タブ数)ごとにデテントが効いてタブが切り替わる。
 /// 弾く(フリック)と慣性でスピンし、最寄りのデテントへ収まる。
 struct HelmControl: View {
     @Binding var selection: AppTab
@@ -22,6 +22,8 @@ struct HelmControl: View {
 
     private let tabs = AppTab.allCases
     private let wheelSize: CGFloat = 300
+    /// 1コマの角度(タブ数で等分)
+    private var step: Double { 360 / Double(tabs.count) }
 
     var body: some View {
         VStack(spacing: 10) {
@@ -90,7 +92,7 @@ struct HelmControl: View {
 
     /// タップ/アクセシビリティ操作で1コマ送る
     private func advance(by steps: Int) {
-        let target = (((angle / 90).rounded()) + Double(steps)) * 90
+        let target = (((angle / step).rounded()) + Double(steps)) * step
         settle(to: target)
     }
 
@@ -123,8 +125,8 @@ struct HelmControl: View {
 
                 // フリックの勢いを投影し(最大3コマ)、最寄りのデテントへ。
                 // 視差減の時は勢いを使わず最寄りへ収める
-                let projectedSpin = reduceMotion ? 0 : max(-270, min(270, angularVelocity * 0.12))
-                let target = ((angle + projectedSpin) / 90).rounded() * 90
+                let projectedSpin = reduceMotion ? 0 : max(-3 * step, min(3 * step, angularVelocity * 0.12))
+                let target = ((angle + projectedSpin) / step).rounded() * step
                 settle(to: target)
                 angularVelocity = 0
             }
@@ -163,7 +165,7 @@ struct HelmControl: View {
     }
 
     private func wrappedIndex(for angle: Double) -> Int {
-        ((Int((angle / 90).rounded()) % tabs.count) + tabs.count) % tabs.count
+        ((Int((angle / step).rounded()) % tabs.count) + tabs.count) % tabs.count
     }
 
     private func angleOf(_ p: CGPoint, center: CGPoint) -> Double {

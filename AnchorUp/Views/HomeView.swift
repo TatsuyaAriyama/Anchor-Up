@@ -29,6 +29,13 @@ struct HomeView: View {
                     homeContent.transition(tabTransition)
                 case .packing:
                     KitsView(store: store).transition(tabTransition)
+                case .calendar:
+                    ChartCalendarView(
+                        store: store,
+                        onEdit: { planEditTarget = .edit($0) },
+                        onCreate: { planEditTarget = .create($0) }
+                    )
+                    .transition(tabTransition)
                 case .crew:
                     CrewView(store: store).transition(tabTransition)
                 case .myPage:
@@ -56,8 +63,8 @@ struct HomeView: View {
         }
         .sheet(item: $planEditTarget) { target in
             switch target {
-            case .create:
-                PlanEditView(store: store, plan: nil)
+            case .create(let defaultDate):
+                PlanEditView(store: store, plan: nil, defaultDate: defaultDate)
             case .edit(let plan):
                 PlanEditView(store: store, plan: plan)
             }
@@ -236,7 +243,7 @@ struct HomeView: View {
             NextVoyageCompactCard(
                 store: store,
                 onTap: { if let plan = store.nextPlan { planEditTarget = .edit(plan) } },
-                onCreate: { planEditTarget = .create }
+                onCreate: { planEditTarget = .create(nil) }
             )
         case .crew:
             CrewCompactCard(store: store) {
@@ -272,7 +279,7 @@ struct HomeView: View {
                     if let plan { anchorUp(plan) }
                 },
                 onCreate: {
-                    planEditTarget = .create
+                    planEditTarget = .create(nil)
                 }
             )
         case .crew:
@@ -327,7 +334,8 @@ struct LayoutResetDropDelegate: DropDelegate {
 
 /// 予定シートの表示対象(新規 or 既存の編集)
 enum PlanEditTarget: Identifiable {
-    case create
+    /// 新規作成(日付の初期値を指定できる。航海図の空き日から)
+    case create(Date?)
     case edit(Voyage)
 
     var id: String {

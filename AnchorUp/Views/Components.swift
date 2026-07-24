@@ -48,6 +48,7 @@ struct AnchorLogo: View {
 enum AppTab: String, CaseIterable {
     case home = "ホーム"
     case packing = "持ち物"
+    case calendar = "航海図"
     case crew = "乗組員"
     case myPage = "マイページ"
 
@@ -55,6 +56,7 @@ enum AppTab: String, CaseIterable {
         switch self {
         case .home: "helm"          // 舵輪
         case .packing: "duffle.bag"
+        case .calendar: "map"       // 海図
         case .crew: "flag.2.crossed"
         case .myPage: "person"
         }

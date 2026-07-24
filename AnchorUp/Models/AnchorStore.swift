@@ -109,7 +109,7 @@ final class AnchorStore: ObservableObject {
     }
 
     @discardableResult
-    func addPlan(title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID]) -> Voyage? {
+    func addPlan(title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID], memberIDs: [UUID] = []) -> Voyage? {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         let plan = Voyage(
@@ -117,13 +117,14 @@ final class AnchorStore: ObservableObject {
             destination: destination.trimmingCharacters(in: .whitespacesAndNewlines),
             date: date,
             hasTime: hasTime,
-            linkedKitIDs: kitIDs
+            linkedKitIDs: kitIDs,
+            memberIDs: memberIDs
         )
         plans.append(plan)
         return plan
     }
 
-    func updatePlan(_ plan: Voyage, title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID]) {
+    func updatePlan(_ plan: Voyage, title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID], memberIDs: [UUID] = []) {
         guard let i = plans.firstIndex(where: { $0.id == plan.id }) else { return }
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmed.isEmpty { plans[i].title = trimmed }
@@ -131,6 +132,22 @@ final class AnchorStore: ObservableObject {
         plans[i].date = date
         plans[i].hasTime = hasTime
         plans[i].linkedKitIDs = kitIDs
+        plans[i].memberIDs = memberIDs
+    }
+
+    // MARK: - 航海図(カレンダー)
+
+    /// 指定日の予定(時刻順)
+    func plans(on day: Date) -> [Voyage] {
+        let cal = Calendar.current
+        return plans
+            .filter { cal.isDate($0.date, inSameDayAs: day) }
+            .sorted { $0.date < $1.date }
+    }
+
+    /// 予定に招待されている乗組員(名簿に現存するもの)
+    func members(of plan: Voyage) -> [Crewmate] {
+        plan.memberIDs.compactMap { id in crew.first { $0.id == id } }
     }
 
     func deletePlan(_ plan: Voyage) {

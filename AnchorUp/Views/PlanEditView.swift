@@ -13,16 +13,18 @@ struct PlanEditView: View {
     @State private var date: Date
     @State private var hasTime: Bool
     @State private var selectedKitIDs: Set<UUID>
+    @State private var selectedCrewIDs: Set<UUID>
     @State private var showingDeleteConfirm = false
 
-    init(store: AnchorStore, plan: Voyage?) {
+    init(store: AnchorStore, plan: Voyage?, defaultDate: Date? = nil) {
         self.store = store
         self.plan = plan
         _title = State(initialValue: plan?.title ?? "")
         _destination = State(initialValue: plan?.destination ?? "")
-        _date = State(initialValue: plan?.date ?? Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now)
+        _date = State(initialValue: plan?.date ?? defaultDate ?? Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now)
         _hasTime = State(initialValue: plan?.hasTime ?? false)
         _selectedKitIDs = State(initialValue: Set(plan?.linkedKitIDs ?? []))
+        _selectedCrewIDs = State(initialValue: Set(plan?.memberIDs ?? []))
     }
 
     private var isEditing: Bool { plan != nil }
@@ -37,6 +39,7 @@ struct PlanEditView: View {
                     basicSection
                     scheduleSection
                     kitsSection
+                    crewSection
                     if isEditing { deleteSection }
                 }
                 .listStyle(.insetGrouped)
@@ -175,6 +178,44 @@ struct PlanEditView: View {
         }
     }
 
+    // MARK: - 乗組員を招待
+
+    private var crewSection: some View {
+        Section {
+            if store.crew.isEmpty {
+                Text("乗組員タブで仲間を登録すると、ここで招待できます。")
+                    .font(.anchorBody(13))
+                    .foregroundStyle(AnchorTheme.textSecondary)
+                    .listRowBackground(AnchorTheme.surface)
+            } else {
+                ForEach(store.crew) { mate in
+                    Button {
+                        toggleCrew(mate.id)
+                        Haptics.tap()
+                    } label: {
+                        HStack(spacing: 12) {
+                            CrewmateAvatar(mate: mate, size: 34)
+                            Text(mate.name)
+                                .font(.anchorBody(16))
+                                .foregroundStyle(AnchorTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: selectedCrewIDs.contains(mate.id) ? "checkmark.circle.fill" : "circle")
+                                .font(.anchorBody(20))
+                                .foregroundStyle(selectedCrewIDs.contains(mate.id) ? AnchorTheme.accent : AnchorTheme.textSecondary.opacity(0.6))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(AnchorTheme.surface)
+                }
+            }
+        } header: {
+            Text("乗組員を招待").foregroundStyle(AnchorTheme.textSecondary)
+        } footer: {
+            Text("招待した乗組員は、航海図にそれぞれの色で表示されます。")
+                .foregroundStyle(AnchorTheme.textSecondary)
+        }
+    }
+
     // MARK: - 削除
 
     private var deleteSection: some View {
@@ -198,14 +239,23 @@ struct PlanEditView: View {
         }
     }
 
+    private func toggleCrew(_ id: UUID) {
+        if selectedCrewIDs.contains(id) {
+            selectedCrewIDs.remove(id)
+        } else {
+            selectedCrewIDs.insert(id)
+        }
+    }
+
     private func save() {
         guard canSave else { return }
-        // 元のセット順を保ちつつ、選択されたものだけ残す
-        let orderedIDs = store.kits.map(\.id).filter { selectedKitIDs.contains($0) }
+        // 元の並び順を保ちつつ、選択されたものだけ残す
+        let orderedKitIDs = store.kits.map(\.id).filter { selectedKitIDs.contains($0) }
+        let orderedCrewIDs = store.crew.map(\.id).filter { selectedCrewIDs.contains($0) }
         if let plan {
-            store.updatePlan(plan, title: title, destination: destination, date: date, hasTime: hasTime, kitIDs: orderedIDs)
+            store.updatePlan(plan, title: title, destination: destination, date: date, hasTime: hasTime, kitIDs: orderedKitIDs, memberIDs: orderedCrewIDs)
         } else {
-            store.addPlan(title: title, destination: destination, date: date, hasTime: hasTime, kitIDs: orderedIDs)
+            store.addPlan(title: title, destination: destination, date: date, hasTime: hasTime, kitIDs: orderedKitIDs, memberIDs: orderedCrewIDs)
         }
         Haptics.soft()
         dismiss()
