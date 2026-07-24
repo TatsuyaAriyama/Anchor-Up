@@ -5,6 +5,7 @@ struct SettingsView: View {
     @ObservedObject var store: AnchorStore
     @ObservedObject var notifications: NotificationManager
     @Environment(\.dismiss) private var dismiss
+    @State private var showingWallpaper = false
 
     var body: some View {
         NavigationStack {
@@ -64,14 +65,17 @@ struct SettingsView: View {
                     }
 
                     Section {
-                        NavigationLink {
-                            WallpaperPickerView(store: store)
+                        Button {
+                            showingWallpaper = true
                         } label: {
                             HStack {
                                 Label("背景", systemImage: "photo.on.rectangle.angled")
                                     .foregroundStyle(AnchorTheme.textPrimary)
                                 Spacer()
                                 Text(store.wallpaper.name)
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.anchorHeading(12))
                                     .foregroundStyle(AnchorTheme.textSecondary)
                             }
                         }
@@ -103,6 +107,9 @@ struct SettingsView: View {
                         .foregroundStyle(AnchorTheme.accent)
                 }
             }
+        }
+        .sheet(isPresented: $showingWallpaper) {
+            WallpaperPickerView(store: store)
         }
         .onAppear { notifications.refreshAuthStatus() }
     }

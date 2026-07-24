@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 背景(壁紙)を選ぶ画面。設定からプッシュして使う。
+/// 背景(壁紙)を選ぶ画面。設定からシート表示して使う(自己完結)。
 struct WallpaperPickerView: View {
     @ObservedObject var store: AnchorStore
+    @Environment(\.dismiss) private var dismiss
 
     private let columns = [
         GridItem(.flexible(), spacing: 14),
@@ -10,6 +11,21 @@ struct WallpaperPickerView: View {
     ]
 
     var body: some View {
+        NavigationStack {
+            content
+                .navigationTitle("背景")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("完了") { dismiss() }
+                            .fontWeight(.semibold)
+                            .foregroundStyle(AnchorTheme.accent)
+                    }
+                }
+        }
+    }
+
+    private var content: some View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(Wallpaper.allCases) { wp in
@@ -50,14 +66,10 @@ struct WallpaperPickerView: View {
         }
         .scrollIndicators(.hidden)
         .background(AnchorTheme.background)
-        .navigationTitle("背景")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 #Preview {
-    NavigationStack {
-        WallpaperPickerView(store: AnchorStore())
-    }
-    .preferredColorScheme(.dark)
+    WallpaperPickerView(store: AnchorStore())
+        .preferredColorScheme(.dark)
 }
