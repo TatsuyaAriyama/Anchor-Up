@@ -147,7 +147,7 @@ struct HomeView: View {
 
     private var dateHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("\(greeting) · \(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).weekday(.wide)))")
+            Text(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).weekday(.wide)))
                 .font(.anchorHeading(13))
                 .foregroundStyle(AnchorTheme.accent)
 
@@ -156,16 +156,6 @@ struct HomeView: View {
                 .foregroundStyle(AnchorTheme.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    /// 時間帯に応じた挨拶
-    private var greeting: String {
-        switch Calendar.current.component(.hour, from: Date()) {
-        case 5..<11: "おはよう"
-        case 11..<17: "こんにちは"
-        case 17..<22: "こんばんは"
-        default: "航海日和"
-        }
     }
 
     // MARK: - ホームタブの中身
