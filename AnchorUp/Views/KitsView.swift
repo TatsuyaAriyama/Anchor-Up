@@ -50,7 +50,7 @@ struct KitsView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 18)
-                .padding(.bottom, 40)
+                .padding(.bottom, 170) // 舵輪ぶんの余白
             }
             .scrollIndicators(.hidden)
             .background(AnchorTheme.background)

@@ -43,7 +43,7 @@ struct AnchorLogo: View {
     }
 }
 
-// MARK: - 上部セグメントタブ
+// MARK: - 画面(タブ)。舵輪の回転で切り替える
 
 enum AppTab: String, CaseIterable {
     case home = "ホーム"
@@ -58,41 +58,6 @@ enum AppTab: String, CaseIterable {
         case .crew: "flag.2.crossed"
         case .myPage: "person"
         }
-    }
-}
-
-struct SegmentTabBar: View {
-    @Binding var selection: AppTab
-
-    var body: some View {
-        HStack(spacing: 0) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.easeOut(duration: 0.2)) { selection = tab }
-                } label: {
-                    VStack(spacing: 7) {
-                        HStack(spacing: 5) {
-                            Image(systemName: tab.symbolName)
-                                .font(.anchorBody(13))
-                            Text(tab.rawValue)
-                                .font(.anchorHeading(13))
-                        }
-                        .foregroundStyle(
-                            selection == tab ? AnchorTheme.textPrimary : AnchorTheme.textSecondary
-                        )
-
-                        // 選択中のみアクセントカラーの下線
-                        Capsule()
-                            .fill(selection == tab ? AnchorTheme.accent : .clear)
-                            .frame(height: 3)
-                            .padding(.horizontal, 10)
-                    }
-                }
-                .buttonStyle(.plain)
-                .frame(maxWidth: .infinity)
-            }
-        }
-        .padding(.horizontal, 10)
     }
 }
 

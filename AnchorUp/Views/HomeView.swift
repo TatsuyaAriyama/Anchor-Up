@@ -5,38 +5,48 @@ struct HomeView: View {
     @StateObject private var store = AnchorStore()
     @StateObject private var notifications = NotificationManager()
     @State private var selectedTab: AppTab = .home
-    @State private var showingSettings = false
-    @State private var showingCustomize = false
     @State private var planEditTarget: PlanEditTarget?
     /// 長押しドラッグ中のセクション
     @State private var draggingSection: HomeSectionKind?
 
     var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack(alignment: .bottom) {
             WallpaperView(wallpaper: store.wallpaper)
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                header
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
-
-                SegmentTabBar(selection: $selectedTab)
-                    .padding(.top, 14)
-
-                Divider()
-                    .overlay(AnchorTheme.moonGlow.opacity(0.08))
-
+            // タブごとの画面(舵輪の回転で切り替わる)
+            ZStack {
                 switch selectedTab {
                 case .home:
                     homeContent
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 case .packing:
                     KitsView(store: store)
-                default:
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                case .crew:
                     placeholderContent
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                case .myPage:
+                    MyPageView(store: store, notifications: notifications)
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
                 }
             }
+            .animation(.easeInOut(duration: 0.25), value: selectedTab)
 
+            // 舵輪の背後の暗がり(海面下)。触れないよう素通し
+            LinearGradient(
+                colors: [.clear, AnchorTheme.background.opacity(0.85)],
+                startPoint: .top, endPoint: .bottom
+            )
+            .frame(height: 180)
+            .allowsHitTesting(false)
+            .ignoresSafeArea(edges: .bottom)
+
+            // 半分海に沈んだ舵輪。回して画面を切り替える
+            HelmControl(selection: $selectedTab)
+                .offset(y: 170)
+        }
+        .overlay(alignment: .bottomTrailing) {
             // ホームタブのみ: 新規予定作成のFAB(持ち物タブは自前のFABを持つ)
             if selectedTab == .home {
                 Button {
@@ -55,12 +65,6 @@ struct HomeView: View {
                 .padding(.bottom, 24)
             }
         }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(store: store, notifications: notifications)
-        }
-        .sheet(isPresented: $showingCustomize) {
-            HomeCustomizeView(store: store)
-        }
         .sheet(item: $planEditTarget) { target in
             switch target {
             case .create:
@@ -72,47 +76,6 @@ struct HomeView: View {
         .onAppear {
             notifications.refreshAuthStatus()
             notifications.rescheduleIfEnabled(itemCount: store.totalItemCount)
-        }
-    }
-
-    // MARK: - ヘッダー
-
-    private var header: some View {
-        HStack {
-            HStack(spacing: 8) {
-                AnchorLogo(size: 22)
-                // ロゴタイプはセリフ体で船名の趣に
-                Text("Anchor Up")
-                    .font(.anchorDisplay(20, weight: .bold))
-                    .foregroundStyle(AnchorTheme.textPrimary)
-            }
-
-            Spacer()
-
-            HStack(spacing: 18) {
-                // ホームタブでのみカスタマイズ導線を出す
-                if selectedTab == .home {
-                    Button {
-                        Haptics.tap()
-                        showingCustomize = true
-                    } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.anchorBody(18))
-                            .foregroundStyle(AnchorTheme.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Button {
-                    Haptics.tap()
-                    showingSettings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.anchorBody(18))
-                        .foregroundStyle(AnchorTheme.textSecondary)
-                }
-                .buttonStyle(.plain)
-            }
         }
     }
 
@@ -183,8 +146,8 @@ struct HomeView: View {
                     }
                 }
 
-                // FABに隠れないよう余白を確保
-                Color.clear.frame(height: 60)
+                // 舵輪とFABに隠れないよう余白を確保
+                Color.clear.frame(height: 170)
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
