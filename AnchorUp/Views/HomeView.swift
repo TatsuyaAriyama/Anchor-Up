@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var selectedTab: AppTab = .home
     @State private var showingSettings = false
     @State private var showingCustomize = false
+    @State private var planEditTarget: PlanEditTarget?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -35,7 +36,8 @@ struct HomeView: View {
             // ホームタブのみ: 新規予定作成のFAB(持ち物タブは自前のFABを持つ)
             if selectedTab == .home {
                 Button {
-                    // TODO: 新規予定作成フローへ
+                    Haptics.tap()
+                    planEditTarget = .create
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 22, weight: .semibold))
@@ -54,6 +56,14 @@ struct HomeView: View {
         }
         .sheet(isPresented: $showingCustomize) {
             HomeCustomizeView(store: store)
+        }
+        .sheet(item: $planEditTarget) { target in
+            switch target {
+            case .create:
+                PlanEditView(store: store, plan: nil)
+            case .edit(let plan):
+                PlanEditView(store: store, plan: plan)
+            }
         }
         .onAppear {
             notifications.refreshAuthStatus()
@@ -151,17 +161,24 @@ struct HomeView: View {
                 withAnimation { selectedTab = .packing }
             }
         case .nextVoyage:
+            let plan = store.nextPlan
             HeroCard(
-                voyage: store.voyage,
-                onAnchorUp: {
-                    // TODO: 全乗組員への出航通知
+                plan: plan,
+                progress: plan.map { store.planProgress($0) } ?? 0,
+                isReady: plan.map { store.planReady($0) } ?? false,
+                packed: plan.map { store.planItemCounts($0) } ?? (0, 0),
+                onTap: {
+                    if let plan { planEditTarget = .edit(plan) }
                 },
-                onCreateVoyage: {
-                    // TODO: 新規予定作成フローへ
+                onAnchorUp: {
+                    Haptics.success()
+                },
+                onCreate: {
+                    planEditTarget = .create
                 }
             )
         case .crew:
-            CrewSection(crew: store.voyage.crew, sharedItems: store.voyage.sharedItems)
+            CrewSection(crew: SampleData.crew, sharedItems: SampleData.sharedItems)
         case .portLog:
             PortLogSection(pastVoyages: SampleData.pastVoyages)
         }
@@ -179,6 +196,19 @@ struct HomeView: View {
                 .font(.system(size: 14))
                 .foregroundStyle(AnchorTheme.textSecondary)
             Spacer()
+        }
+    }
+}
+
+/// 予定シートの表示対象(新規 or 既存の編集)
+enum PlanEditTarget: Identifiable {
+    case create
+    case edit(Voyage)
+
+    var id: String {
+        switch self {
+        case .create: "create"
+        case .edit(let plan): plan.id.uuidString
         }
     }
 }

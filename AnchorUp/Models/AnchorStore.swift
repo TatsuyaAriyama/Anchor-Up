@@ -11,19 +11,89 @@ final class AnchorStore: ObservableObject {
     /// ホーム画面のセクション構成(順序・表示/非表示)
     @Published var homeSections: [HomeSectionConfig] { didSet { saveLayout() } }
 
-    /// ホームのヒーローに出す航海(旅行の予定)
-    @Published var voyage: Voyage
+    /// 予定(航海)の一覧。変更のたびに保存する。
+    @Published var plans: [Voyage] { didSet { savePlans() } }
 
     private let kitsKey = "anchorup.kits.v1"
     private let layoutKey = "anchorup.homeLayout.v1"
+    private let plansKey = "anchorup.plans.v1"
 
-    var me: CrewMember { voyage.crew.first ?? SampleData.you }
-
-    init(voyage: Voyage = SampleData.nextVoyage) {
-        self.voyage = voyage
+    init() {
         self.kits = Self.load(key: "anchorup.kits.v1") ?? DefaultKits.seed()
         let savedLayout = Self.loadLayout(key: "anchorup.homeLayout.v1")
         self.homeSections = HomeSectionConfig.reconciled(savedLayout ?? HomeSectionConfig.defaultLayout)
+        self.plans = Self.loadPlans(key: "anchorup.plans.v1") ?? []
+    }
+
+    // MARK: - 予定(航海)
+
+    /// 直近の未来の予定(なければ nil)
+    var nextPlan: Voyage? {
+        let today = Calendar.current.startOfDay(for: Date())
+        return plans
+            .filter { Calendar.current.startOfDay(for: $0.date) >= today }
+            .sorted { $0.date < $1.date }
+            .first
+    }
+
+    /// 未来の予定の総数
+    var upcomingPlanCount: Int {
+        let today = Calendar.current.startOfDay(for: Date())
+        return plans.filter { Calendar.current.startOfDay(for: $0.date) >= today }.count
+    }
+
+    /// 予定に紐付いた持ち物セット(削除済みのIDは除外)
+    func linkedKits(_ plan: Voyage) -> [PackingKit] {
+        plan.linkedKitIDs.compactMap { id in kits.first { $0.id == id } }
+    }
+
+    /// 紐付いたセットの合計(チェック済み, 総数)
+    func planItemCounts(_ plan: Voyage) -> (checked: Int, total: Int) {
+        let ks = linkedKits(plan)
+        let total = ks.reduce(0) { $0 + $1.items.count }
+        let checked = ks.reduce(0) { $0 + $1.checkedCount }
+        return (checked, total)
+    }
+
+    func planProgress(_ plan: Voyage) -> Double {
+        let c = planItemCounts(plan)
+        guard c.total > 0 else { return 0 }
+        return Double(c.checked) / Double(c.total)
+    }
+
+    /// 紐付いた持ち物がすべてチェック済みか(1件以上ある前提)
+    func planReady(_ plan: Voyage) -> Bool {
+        let c = planItemCounts(plan)
+        return c.total > 0 && c.checked == c.total
+    }
+
+    @discardableResult
+    func addPlan(title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID]) -> Voyage? {
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let plan = Voyage(
+            title: trimmed,
+            destination: destination.trimmingCharacters(in: .whitespacesAndNewlines),
+            date: date,
+            hasTime: hasTime,
+            linkedKitIDs: kitIDs
+        )
+        plans.append(plan)
+        return plan
+    }
+
+    func updatePlan(_ plan: Voyage, title: String, destination: String, date: Date, hasTime: Bool, kitIDs: [UUID]) {
+        guard let i = plans.firstIndex(where: { $0.id == plan.id }) else { return }
+        let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { plans[i].title = trimmed }
+        plans[i].destination = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        plans[i].date = date
+        plans[i].hasTime = hasTime
+        plans[i].linkedKitIDs = kitIDs
+    }
+
+    func deletePlan(_ plan: Voyage) {
+        plans.removeAll { $0.id == plan.id }
     }
 
     // MARK: - ホームのレイアウト
@@ -177,5 +247,16 @@ final class AnchorStore: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: key),
               let layout = try? JSONDecoder().decode([HomeSectionConfig].self, from: data) else { return nil }
         return layout
+    }
+
+    private func savePlans() {
+        guard let data = try? JSONEncoder().encode(plans) else { return }
+        UserDefaults.standard.set(data, forKey: plansKey)
+    }
+
+    private static func loadPlans(key: String) -> [Voyage]? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let plans = try? JSONDecoder().decode([Voyage].self, from: data) else { return nil }
+        return plans
     }
 }

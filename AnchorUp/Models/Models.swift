@@ -1,13 +1,13 @@
 import SwiftUI
 
-// MARK: - 乗組員
+// MARK: - 乗組員(乗組員セクションのデモ用。将来の共有機能で本格利用)
 
 struct CrewMember: Identifiable, Equatable {
     let id: UUID
     let name: String
     let initial: String
     let color: Color
-    /// 持ち物準備の進捗 (0.0 - 1.0)
+    /// 準備の進捗 (0.0 - 1.0)
     var progress: Double
 
     init(id: UUID = UUID(), name: String, initial: String, color: Color, progress: Double) {
@@ -19,94 +19,10 @@ struct CrewMember: Identifiable, Equatable {
     }
 }
 
-// MARK: - 持ち物のカテゴリ
-
-enum PackingCategory: String, CaseIterable, Identifiable {
-    case gear = "道具"
-    case clothing = "衣類"
-    case electronics = "電子機器"
-    case food = "食料・水"
-    case health = "救急・衛生"
-    case other = "その他"
-
-    var id: String { rawValue }
-
-    var symbolName: String {
-        switch self {
-        case .gear: "backpack"
-        case .clothing: "tshirt"
-        case .electronics: "bolt.batteryblock"
-        case .food: "fork.knife"
-        case .health: "cross.case"
-        case .other: "shippingbox"
-        }
-    }
-
-    var tint: Color {
-        switch self {
-        case .gear: AnchorTheme.hullTan
-        case .clothing: AnchorTheme.tileIndigo
-        case .electronics: AnchorTheme.tileCharcoal
-        case .food: AnchorTheme.tileMustard
-        case .health: AnchorTheme.tileTerracotta
-        case .other: AnchorTheme.seaShallow
-        }
-    }
-}
-
-// MARK: - 持ち物アイテム
-
-enum PackingStatus {
-    case notStarted // 未完了
-    case inProgress // 準備中
-    case done       // 完了
-
-    /// 信号旗のような色付きドット
-    var flagColor: Color {
-        switch self {
-        case .notStarted: AnchorTheme.tileTerracotta
-        case .inProgress: AnchorTheme.tileMustard
-        case .done: AnchorTheme.seaShallow
-        }
-    }
-
-    var label: String {
-        switch self {
-        case .notStarted: "未完了"
-        case .inProgress: "準備中"
-        case .done: "完了"
-        }
-    }
-
-    /// タップで次の状態へ(未完了→準備中→完了→未完了)
-    var next: PackingStatus {
-        switch self {
-        case .notStarted: .inProgress
-        case .inProgress: .done
-        case .done: .notStarted
-        }
-    }
-}
-
-struct PackingItem: Identifiable {
-    let id: UUID
-    var name: String
-    var status: PackingStatus
-    var category: PackingCategory
-
-    init(id: UUID = UUID(), name: String, status: PackingStatus = .notStarted, category: PackingCategory = .other) {
-        self.id = id
-        self.name = name
-        self.status = status
-        self.category = category
-    }
-}
-
-/// 誰か一人が持てば足りる共有アイテム(船倉シェア)
+/// 誰か一人が持てば足りる共有アイテム(船倉シェア。乗組員セクションのデモ用)
 struct SharedItem: Identifiable {
     let id: UUID
     var name: String
-    /// 担当者。nil なら未定
     var assignee: CrewMember?
 
     init(id: UUID = UUID(), name: String, assignee: CrewMember? = nil) {
@@ -116,56 +32,70 @@ struct SharedItem: Identifiable {
     }
 }
 
-// MARK: - 航海(予定)
+// MARK: - 予定(航海)
 
-struct Voyage: Identifiable {
-    let id: UUID
+/// 旅行・お出かけの予定。持ち物セットを紐付けて準備状況を測る。
+struct Voyage: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
     var title: String
     var destination: String
-    var departureDate: Date
-    var crew: [CrewMember]
-    var myItems: [PackingItem]
-    var sharedItems: [SharedItem]
+    var date: Date
+    /// 時刻まで指定しているか
+    var hasTime: Bool
+    /// 持っていく持ち物セットのID
+    var linkedKitIDs: [UUID]
 
     init(
         id: UUID = UUID(),
         title: String,
-        destination: String,
-        departureDate: Date,
-        crew: [CrewMember],
-        myItems: [PackingItem],
-        sharedItems: [SharedItem]
+        destination: String = "",
+        date: Date,
+        hasTime: Bool = false,
+        linkedKitIDs: [UUID] = []
     ) {
         self.id = id
         self.title = title
         self.destination = destination
-        self.departureDate = departureDate
-        self.crew = crew
-        self.myItems = myItems
-        self.sharedItems = sharedItems
+        self.date = date
+        self.hasTime = hasTime
+        self.linkedKitIDs = linkedKitIDs
     }
 
-    /// 出航まで残り日数(当日は 0)
+    /// 出航まで残り日数(過去なら負、当日は 0)
     var daysUntilDeparture: Int {
         let cal = Calendar.current
-        let from = cal.startOfDay(for: .now)
-        let to = cal.startOfDay(for: departureDate)
-        return max(0, cal.dateComponents([.day], from: from, to: to).day ?? 0)
+        let from = cal.startOfDay(for: Date())
+        let to = cal.startOfDay(for: date)
+        return cal.dateComponents([.day], from: from, to: to).day ?? 0
     }
 
-    /// 自分の持ち物準備の進捗 (0.0 - 1.0)
-    var myProgress: Double {
-        guard !myItems.isEmpty else { return 0 }
-        let done = myItems.filter { $0.status == .done }.count
-        return Double(done) / Double(myItems.count)
+    var isPast: Bool { daysUntilDeparture < 0 }
+
+    /// 「出航まであと2日」など
+    var countdownText: String {
+        let days = daysUntilDeparture
+        if days < 0 { return "終了しました" }
+        if days == 0 { return "本日、出航" }
+        if days == 1 { return "明日、出航" }
+        return "出航まであと\(days)日"
     }
 
-    var doneCount: Int { myItems.filter { $0.status == .done }.count }
-
-    var isReadyToSail: Bool { !myItems.isEmpty && myProgress >= 1.0 }
+    /// 「7月26日(土)」+ 時刻(任意)
+    var dateText: String {
+        let base = date.formatted(
+            Date.FormatStyle(locale: .init(identifier: "ja_JP"))
+                .month(.wide).day().weekday(.short)
+        )
+        guard hasTime else { return base }
+        let time = date.formatted(
+            Date.FormatStyle(locale: .init(identifier: "ja_JP")).hour().minute()
+        )
+        return "\(base) \(time)"
+    }
 }
 
-/// 完了した過去の航海
+// MARK: - 過去の記録(寄港の記録セクションのデモ用)
+
 struct PastVoyage: Identifiable {
     let id = UUID()
     let title: String
@@ -174,10 +104,9 @@ struct PastVoyage: Identifiable {
     let tint: Color
 }
 
-// MARK: - サンプルデータ
+// MARK: - サンプルデータ(デモ用セクション向け)
 
 enum SampleData {
-    // 乗組員のIDを固定して、共有アイテムの担当参照と一致させる
     static let you = CrewMember(name: "あなた", initial: "あ", color: AnchorTheme.tileIndigo, progress: 0.5)
     static let haruka = CrewMember(name: "ハルカ", initial: "ハ", color: AnchorTheme.tileTerracotta, progress: 0.9)
     static let kenta = CrewMember(name: "ケンタ", initial: "ケ", color: AnchorTheme.tileMustard, progress: 0.3)
@@ -185,28 +114,11 @@ enum SampleData {
 
     static var crew: [CrewMember] { [you, haruka, kenta, mio] }
 
-    static var nextVoyage: Voyage {
-        Voyage(
-            title: "沖ノ島キャンプ",
-            destination: "千葉・沖ノ島",
-            departureDate: Calendar.current.date(byAdding: .day, value: 2, to: .now) ?? .now,
-            crew: crew,
-            myItems: [
-                PackingItem(name: "モバイルバッテリー", status: .notStarted, category: .electronics),
-                PackingItem(name: "ヘッドライト", status: .done, category: .electronics),
-                PackingItem(name: "レインウェア", status: .inProgress, category: .clothing),
-                PackingItem(name: "着替え", status: .done, category: .clothing),
-                PackingItem(name: "救急セット", status: .notStarted, category: .health),
-                PackingItem(name: "日焼け止め", status: .done, category: .health),
-                PackingItem(name: "行動食", status: .notStarted, category: .food),
-                PackingItem(name: "シュラフ", status: .inProgress, category: .gear),
-            ],
-            sharedItems: [
-                SharedItem(name: "テント", assignee: nil),
-                SharedItem(name: "クーラーボックス", assignee: haruka),
-                SharedItem(name: "ランタン", assignee: nil),
-            ]
-        )
+    static var sharedItems: [SharedItem] {
+        [
+            SharedItem(name: "テント", assignee: nil),
+            SharedItem(name: "クーラーボックス", assignee: haruka),
+        ]
     }
 
     static let pastVoyages: [PastVoyage] = [

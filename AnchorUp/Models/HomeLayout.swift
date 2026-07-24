@@ -48,14 +48,15 @@ struct HomeSectionConfig: Codable, Identifiable, Equatable {
     var isVisible: Bool
     var id: String { kind.rawValue }
 
-    /// 既定のレイアウト(日常使いを上に)
+    /// 既定のレイアウト。初期は「今日の持ち物」と「次の予定」だけを表示し、
+    /// 他はカスタマイズでオンにできる。
     static var defaultLayout: [HomeSectionConfig] {
         [
             .init(kind: .todayItems, isVisible: true),
-            .init(kind: .pinnedKits, isVisible: true),
             .init(kind: .nextVoyage, isVisible: true),
-            .init(kind: .crew, isVisible: true),
-            .init(kind: .portLog, isVisible: true),
+            .init(kind: .pinnedKits, isVisible: false),
+            .init(kind: .crew, isVisible: false),
+            .init(kind: .portLog, isVisible: false),
         ]
     }
 
