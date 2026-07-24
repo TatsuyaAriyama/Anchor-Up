@@ -101,6 +101,25 @@ final class AnchorStore: ObservableObject {
         }
     }
 
+    /// セットの持ち物をすべてチェック(まとめて準備OK)
+    func checkAll(in kit: PackingKit) {
+        guard let kIdx = kits.firstIndex(where: { $0.id == kit.id }) else { return }
+        for i in kits[kIdx].items.indices {
+            kits[kIdx].items[i].isChecked = true
+        }
+    }
+
+    /// セット内の持ち物を並び替える
+    func moveItems(in kit: PackingKit, fromOffsets: IndexSet, toOffset: Int) {
+        guard let kIdx = kits.firstIndex(where: { $0.id == kit.id }) else { return }
+        kits[kIdx].items.move(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
+    /// セット自体を並び替える
+    func moveKits(fromOffsets: IndexSet, toOffset: Int) {
+        kits.move(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
     /// 現在のkitsからライブな値を取り出す(詳細画面で最新を参照するため)
     func kit(withID id: UUID) -> PackingKit? {
         kits.first { $0.id == id }

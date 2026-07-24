@@ -2,7 +2,9 @@ import SwiftUI
 
 struct HomeView: View {
     @StateObject private var store = AnchorStore()
+    @StateObject private var notifications = NotificationManager()
     @State private var selectedTab: AppTab = .home
+    @State private var showingSettings = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -46,6 +48,13 @@ struct HomeView: View {
                 .padding(.bottom, 24)
             }
         }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(store: store, notifications: notifications)
+        }
+        .onAppear {
+            notifications.refreshAuthStatus()
+            notifications.rescheduleIfEnabled(itemCount: store.totalItemCount)
+        }
     }
 
     // MARK: - ヘッダー
@@ -62,7 +71,8 @@ struct HomeView: View {
             Spacer()
 
             Button {
-                // TODO: 設定画面へ
+                Haptics.tap()
+                showingSettings = true
             } label: {
                 Image(systemName: "gearshape")
                     .font(.system(size: 18))

@@ -56,6 +56,9 @@ struct KitDetailView: View {
                         }
                     }
                 }
+                .onMove { indices, newOffset in
+                    store.moveItems(in: kit, fromOffsets: indices, toOffset: newOffset)
+                }
 
                 // インライン追加
                 HStack(spacing: 12) {
@@ -84,6 +87,12 @@ struct KitDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if !kit.items.isEmpty {
+                    EditButton()
+                        .foregroundStyle(AnchorTheme.accent)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
@@ -91,11 +100,19 @@ struct KitDetailView: View {
                     } label: {
                         Label("セットを編集", systemImage: "pencil")
                     }
-                    Button {
-                        withAnimation { store.resetChecks(in: kit) }
-                        Haptics.soft()
-                    } label: {
-                        Label("チェックを外す", systemImage: "arrow.counterclockwise")
+                    if !kit.items.isEmpty {
+                        Button {
+                            withAnimation { store.checkAll(in: kit) }
+                            Haptics.success()
+                        } label: {
+                            Label("すべて準備OKにする", systemImage: "checkmark.circle")
+                        }
+                        Button {
+                            withAnimation { store.resetChecks(in: kit) }
+                            Haptics.soft()
+                        } label: {
+                            Label("チェックを外す", systemImage: "arrow.counterclockwise")
+                        }
                     }
                     Divider()
                     Button(role: .destructive) {
