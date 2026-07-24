@@ -85,7 +85,7 @@ private struct PinnedKitRow: View {
     }
 }
 
-// MARK: - 今日の持ち物(全セットから未チェックを抜粋)
+// MARK: - 持ち物リスト(全セットから未チェックを抜粋)
 
 struct TodayItemsSection: View {
     @ObservedObject var store: AnchorStore
@@ -98,7 +98,7 @@ struct TodayItemsSection: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                SectionHeader(title: "今日の持ち物")
+                SectionHeader(title: "持ち物リスト")
                 Button(action: onOpen) {
                     Text("すべて見る")
                         .font(.anchorHeading(13))
@@ -112,7 +112,7 @@ struct TodayItemsSection: View {
                     HStack(spacing: 10) {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundStyle(AnchorTheme.accent)
-                        Text(store.totalItemCount == 0 ? "持ち物セットを作ってみよう" : "今日の持ち物はすべて準備OK")
+                        Text(store.totalItemCount == 0 ? "持ち物セットを作ってみよう" : "持ち物はすべて準備OK")
                             .font(.anchorBody(15))
                             .foregroundStyle(AnchorTheme.textPrimary)
                         Spacer()

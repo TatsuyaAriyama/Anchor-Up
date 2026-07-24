@@ -33,7 +33,7 @@ private struct TileTitle: View {
     }
 }
 
-// MARK: - 今日の持ち物(コンパクト)
+// MARK: - 持ち物リスト(コンパクト)
 
 struct TodayItemsCompactCard: View {
     @ObservedObject var store: AnchorStore
@@ -44,7 +44,7 @@ struct TodayItemsCompactCard: View {
     var body: some View {
         CompactTile(action: onOpen) {
             VStack(alignment: .leading, spacing: 6) {
-                TileTitle(symbol: "checklist", title: "今日の持ち物")
+                TileTitle(symbol: "checklist", title: "持ち物リスト")
                 Spacer()
                 if store.totalItemCount == 0 {
                     Text("セットを\n作ってみよう")

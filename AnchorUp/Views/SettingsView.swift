@@ -92,7 +92,7 @@ struct SettingsView: View {
 
     private var footerText: String {
         if notifications.isEnabled {
-            return "毎日 \(notifications.timeText) に、今日の持ち物の確認をお知らせします。"
+            return "毎日 \(notifications.timeText) に、持ち物リストの確認をお知らせします。"
         }
         return "オンにすると、毎朝きまった時刻に持ち物の確認をお知らせします。"
     }

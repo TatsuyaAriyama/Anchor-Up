@@ -85,10 +85,10 @@ final class NotificationManager: ObservableObject {
         center.removePendingNotificationRequests(withIdentifiers: [requestID])
 
         let content = UNMutableNotificationContent()
-        content.title = "今日の持ち物"
+        content.title = "持ち物リスト"
         content.body = itemCount > 0
             ? "出発前に持ち物を確認しよう。"
-            : "今日の持ち物を準備しよう。"
+            : "持ち物を準備しよう。"
         content.sound = .default
 
         var comps = DateComponents()

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// ホーム画面に並べられるセクションの種類。
 enum HomeSectionKind: String, Codable, CaseIterable, Identifiable {
-    case todayItems   // 今日の持ち物
+    case todayItems   // 持ち物リスト
     case pinnedKits   // ピン留めセット
     case nextVoyage   // 次の予定(航海)
     case crew         // 乗組員
@@ -12,7 +12,7 @@ enum HomeSectionKind: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .todayItems: "今日の持ち物"
+        case .todayItems: "持ち物リスト"
         case .pinnedKits: "ピン留めセット"
         case .nextVoyage: "次の予定"
         case .crew: "乗組員"
@@ -87,7 +87,7 @@ struct HomeSectionConfig: Codable, Identifiable, Equatable, Hashable {
         size = try c.decodeIfPresent(HomeSectionSize.self, forKey: .size) ?? .full
     }
 
-    /// 既定のレイアウト。初期は「今日の持ち物」と「次の予定」だけを表示し、
+    /// 既定のレイアウト。初期は「持ち物リスト」と「次の予定」だけを表示し、
     /// 他はカスタマイズでオンにできる。
     static var defaultLayout: [HomeSectionConfig] {
         [
