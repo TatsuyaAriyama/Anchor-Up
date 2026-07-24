@@ -42,11 +42,50 @@ enum HomeSectionKind: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// セクションの大きさ。全幅カードか、半分幅のタイルか。
+enum HomeSectionSize: String, Codable, CaseIterable {
+    case full // 全幅
+    case half // 半分(横に2つ並ぶ)
+
+    var label: String {
+        switch self {
+        case .full: "全幅"
+        case .half: "半分"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .full: "rectangle.fill"
+        case .half: "rectangle.lefthalf.filled"
+        }
+    }
+}
+
 /// 1セクションの表示設定。順序は配列で表す。
-struct HomeSectionConfig: Codable, Identifiable, Equatable {
+struct HomeSectionConfig: Codable, Identifiable, Equatable, Hashable {
     var kind: HomeSectionKind
     var isVisible: Bool
+    var size: HomeSectionSize = .full
     var id: String { kind.rawValue }
+
+    enum CodingKeys: String, CodingKey {
+        case kind, isVisible, size
+    }
+
+    init(kind: HomeSectionKind, isVisible: Bool, size: HomeSectionSize = .full) {
+        self.kind = kind
+        self.isVisible = isVisible
+        self.size = size
+    }
+
+    // sizeは後から追加したため、旧データ(キー無し)でも読めるようにする
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decode(HomeSectionKind.self, forKey: .kind)
+        isVisible = try c.decode(Bool.self, forKey: .isVisible)
+        size = try c.decodeIfPresent(HomeSectionSize.self, forKey: .size) ?? .full
+    }
 
     /// 既定のレイアウト。初期は「今日の持ち物」と「次の予定」だけを表示し、
     /// 他はカスタマイズでオンにできる。

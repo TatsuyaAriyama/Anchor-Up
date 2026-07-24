@@ -73,9 +73,9 @@ struct SegmentTabBar: View {
                     VStack(spacing: 7) {
                         HStack(spacing: 5) {
                             Image(systemName: tab.symbolName)
-                                .font(.system(size: 13, weight: .medium))
+                                .font(.anchorBody(13))
                             Text(tab.rawValue)
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.anchorHeading(13))
                         }
                         .foregroundStyle(
                             selection == tab ? AnchorTheme.textPrimary : AnchorTheme.textSecondary
@@ -125,7 +125,7 @@ struct CrewAvatar: View {
         ZStack {
             Circle().fill(member.color)
             Text(member.initial)
-                .font(.system(size: size * 0.42, weight: .semibold))
+                .font(.anchorHeading(size * 0.42))
                 .foregroundStyle(AnchorTheme.textPrimary)
         }
         .frame(width: size, height: size)
@@ -139,7 +139,7 @@ struct SectionHeader: View {
 
     var body: some View {
         Text(title)
-            .font(.system(size: 17, weight: .bold))
+            .font(.anchorHeading(17))
             .foregroundStyle(AnchorTheme.textPrimary)
             .frame(maxWidth: .infinity, alignment: .leading)
     }

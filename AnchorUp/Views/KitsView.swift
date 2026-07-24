@@ -21,7 +21,7 @@ struct KitsView: View {
 
                     HStack {
                         Text("持ち物セット")
-                            .font(.system(size: 17, weight: .bold))
+                            .font(.anchorHeading(17))
                             .foregroundStyle(AnchorTheme.textPrimary)
                         Spacer()
                         Button {
@@ -29,7 +29,7 @@ struct KitsView: View {
                             showingAddKit = true
                         } label: {
                             Label("追加", systemImage: "plus")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.anchorHeading(14))
                                 .foregroundStyle(AnchorTheme.accent)
                         }
                         .buttonStyle(.plain)
@@ -71,10 +71,10 @@ struct KitsView: View {
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "bag")
-                .font(.system(size: 40))
+                .font(.anchorBody(40))
                 .foregroundStyle(AnchorTheme.textSecondary.opacity(0.7))
             Text("持ち物セットがまだありません。\n「仕事」「毎日」など用途ごとに作ってみよう。")
-                .font(.system(size: 14))
+                .font(.anchorBody(14))
                 .foregroundStyle(AnchorTheme.textSecondary)
                 .multilineTextAlignment(.center)
         }
@@ -93,17 +93,17 @@ private struct TodaySummaryCard: View {
             ZStack {
                 ProgressRing(progress: store.overallProgress, lineWidth: 6)
                 Text("\(Int(store.overallProgress * 100))%")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.anchorHeading(15))
                     .foregroundStyle(AnchorTheme.textPrimary)
             }
             .frame(width: 58, height: 58)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("今日の準備")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.anchorHeading(13))
                     .foregroundStyle(AnchorTheme.textSecondary)
                 Text("\(store.checkedItemCount) / \(store.totalItemCount) 個 準備OK")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.anchorHeading(18))
                     .foregroundStyle(AnchorTheme.textPrimary)
             }
             Spacer()
@@ -125,7 +125,7 @@ private struct KitCard: View {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
                         .fill(kit.color.color.opacity(0.28))
                     Image(systemName: kit.symbolName)
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.anchorBody(20))
                         .foregroundStyle(kit.color.color)
                 }
                 .frame(width: 46, height: 46)
@@ -134,25 +134,25 @@ private struct KitCard: View {
 
                 if kit.isPinned {
                     Image(systemName: "pin.fill")
-                        .font(.system(size: 13))
+                        .font(.anchorBody(13))
                         .foregroundStyle(AnchorTheme.hullTan)
                         .rotationEffect(.degrees(45))
                 }
 
                 if kit.isComplete {
                     Image(systemName: "checkmark.seal.fill")
-                        .font(.system(size: 18))
+                        .font(.anchorBody(18))
                         .foregroundStyle(AnchorTheme.accent)
                 }
             }
 
             Text(kit.name)
-                .font(.system(size: 16, weight: .bold))
+                .font(.anchorHeading(16))
                 .foregroundStyle(AnchorTheme.textPrimary)
                 .lineLimit(1)
 
             Text(kit.items.isEmpty ? "持ち物なし" : "\(kit.checkedCount) / \(kit.items.count)")
-                .font(.system(size: 13, weight: .medium))
+                .font(.anchorBody(13))
                 .foregroundStyle(AnchorTheme.textSecondary)
 
             GeometryReader { geo in

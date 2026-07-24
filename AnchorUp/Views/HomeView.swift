@@ -40,7 +40,7 @@ struct HomeView: View {
                     planEditTarget = .create
                 } label: {
                     Image(systemName: "plus")
-                        .font(.system(size: 22, weight: .semibold))
+                        .font(.anchorHeading(22))
                         .foregroundStyle(AnchorTheme.moonGlow)
                         .frame(width: 56, height: 56)
                         .background(AnchorTheme.accent, in: Circle())
@@ -77,8 +77,9 @@ struct HomeView: View {
         HStack {
             HStack(spacing: 8) {
                 AnchorLogo(size: 22)
+                // ロゴタイプはセリフ体で船名の趣に
                 Text("Anchor Up")
-                    .font(.system(size: 19, weight: .bold))
+                    .font(.anchorDisplay(20, weight: .bold))
                     .foregroundStyle(AnchorTheme.textPrimary)
             }
 
@@ -92,7 +93,7 @@ struct HomeView: View {
                         showingCustomize = true
                     } label: {
                         Image(systemName: "slider.horizontal.3")
-                            .font(.system(size: 18))
+                            .font(.anchorBody(18))
                             .foregroundStyle(AnchorTheme.textSecondary)
                     }
                     .buttonStyle(.plain)
@@ -103,7 +104,7 @@ struct HomeView: View {
                     showingSettings = true
                 } label: {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 18))
+                        .font(.anchorBody(18))
                         .foregroundStyle(AnchorTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
@@ -116,11 +117,11 @@ struct HomeView: View {
     private var dateHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).weekday(.wide)))
-                .font(.system(size: 13, weight: .bold))
+                .font(.anchorHeading(13))
                 .foregroundStyle(AnchorTheme.accent)
 
             Text(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).month(.wide).day()))
-                .font(.system(size: 30, weight: .bold))
+                .font(.anchorHeading(30))
                 .foregroundStyle(AnchorTheme.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -128,15 +129,53 @@ struct HomeView: View {
 
     // MARK: - ホームタブの中身
 
+    /// 表示中のセクションを行に組む。連続する「半分」タイルは2つで1行になる。
+    private var bentoRows: [[HomeSectionConfig]] {
+        var rows: [[HomeSectionConfig]] = []
+        var pendingHalf: HomeSectionConfig?
+        for config in store.homeSections where config.isVisible {
+            switch config.size {
+            case .full:
+                if let half = pendingHalf {
+                    rows.append([half])
+                    pendingHalf = nil
+                }
+                rows.append([config])
+            case .half:
+                if let half = pendingHalf {
+                    rows.append([half, config])
+                    pendingHalf = nil
+                } else {
+                    pendingHalf = config
+                }
+            }
+        }
+        if let half = pendingHalf { rows.append([half]) }
+        return rows
+    }
+
     private var homeContent: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: 18) {
                 dateHeader
+                    .padding(.bottom, 6)
 
-                // レイアウト設定に従って、表示中のセクションを順に並べる
-                ForEach(store.homeSections) { config in
-                    if config.isVisible {
-                        sectionView(config.kind)
+                // レイアウト設定に従ったベントーグリッド
+                ForEach(bentoRows, id: \.self) { row in
+                    if row.count == 2 {
+                        HStack(alignment: .top, spacing: 14) {
+                            compactView(row[0].kind)
+                            compactView(row[1].kind)
+                        }
+                    } else if let config = row.first {
+                        if config.size == .half {
+                            HStack(alignment: .top, spacing: 14) {
+                                compactView(config.kind)
+                                Color.clear.frame(maxWidth: .infinity)
+                            }
+                        } else {
+                            sectionView(config.kind)
+                        }
                     }
                 }
 
@@ -147,6 +186,31 @@ struct HomeView: View {
             .padding(.top, 20)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// 半分サイズのコンパクトタイル
+    @ViewBuilder
+    private func compactView(_ kind: HomeSectionKind) -> some View {
+        switch kind {
+        case .todayItems:
+            TodayItemsCompactCard(store: store) {
+                withAnimation { selectedTab = .packing }
+            }
+        case .pinnedKits:
+            PinnedKitsCompactCard(store: store) {
+                withAnimation { selectedTab = .packing }
+            }
+        case .nextVoyage:
+            NextVoyageCompactCard(
+                store: store,
+                onTap: { if let plan = store.nextPlan { planEditTarget = .edit(plan) } },
+                onCreate: { planEditTarget = .create }
+            )
+        case .crew:
+            CrewCompactCard()
+        case .portLog:
+            PortLogCompactCard()
+        }
     }
 
     @ViewBuilder
@@ -190,10 +254,10 @@ struct HomeView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "helm")
-                .font(.system(size: 34))
+                .font(.anchorBody(34))
                 .foregroundStyle(AnchorTheme.textSecondary)
             Text("この区画は整備中です")
-                .font(.system(size: 14))
+                .font(.anchorBody(14))
                 .foregroundStyle(AnchorTheme.textSecondary)
             Spacer()
         }

@@ -44,21 +44,21 @@ struct HeroCard: View {
             Spacer()
 
             Text(plan.countdownText)
-                .font(.system(size: 13, weight: .bold))
+                .font(.anchorHeading(13))
                 .foregroundStyle(AnchorTheme.accent)
 
             Text(plan.title)
-                .font(.system(size: 23, weight: .bold))
+                .font(.anchorHeading(23))
                 .foregroundStyle(AnchorTheme.textPrimary)
                 .lineLimit(1)
 
             HStack(spacing: 10) {
                 Label(plan.dateText, systemImage: "calendar")
-                    .font(.system(size: 12))
+                    .font(.anchorBody(12))
                     .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
                 if !plan.destination.isEmpty {
                     Label(plan.destination, systemImage: "mappin.and.ellipse")
-                        .font(.system(size: 12))
+                        .font(.anchorBody(12))
                         .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
                         .lineLimit(1)
                 }
@@ -74,7 +74,7 @@ struct HeroCard: View {
                         HStack(spacing: 6) {
                             AnchorLogo(size: 16, color: AnchorTheme.seaDeep)
                             Text("Anchor Up")
-                                .font(.system(size: 15, weight: .bold))
+                                .font(.anchorHeading(15))
                         }
                         .foregroundStyle(AnchorTheme.seaDeep)
                         .padding(.horizontal, 16)
@@ -86,7 +86,7 @@ struct HeroCard: View {
                     ZStack {
                         ProgressRing(progress: progress, lineWidth: 4.5)
                         Text("\(Int(progress * 100))%")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.anchorHeading(12))
                             .foregroundStyle(AnchorTheme.textPrimary)
                     }
                     .frame(width: 46, height: 46)
@@ -101,13 +101,13 @@ struct HeroCard: View {
     private func packingSummary(_ plan: Voyage) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "bag")
-                .font(.system(size: 12, weight: .medium))
+                .font(.anchorBody(12))
             if packed.total > 0 {
                 Text("持ち物 \(packed.checked)/\(packed.total)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.anchorHeading(13))
             } else {
                 Text("持ち物セット未設定")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.anchorBody(13))
             }
         }
         .foregroundStyle(AnchorTheme.moonGlow.opacity(0.9))
@@ -122,12 +122,12 @@ struct HeroCard: View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer()
             Text("次の航海を計画しよう。")
-                .font(.system(size: 20, weight: .bold))
+                .font(.anchorHeading(20))
                 .foregroundStyle(AnchorTheme.textPrimary)
 
             Button(action: onCreate) {
                 Label("予定をつくる", systemImage: "plus")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.anchorHeading(14))
                     .foregroundStyle(AnchorTheme.seaDeep)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 9)

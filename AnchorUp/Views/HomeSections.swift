@@ -17,7 +17,7 @@ struct PinnedKitsSection: View {
                         Image(systemName: "pin")
                             .foregroundStyle(AnchorTheme.textSecondary)
                         Text("持ち物タブでセットをピン留めすると、ここに並びます")
-                            .font(.system(size: 13))
+                            .font(.anchorBody(13))
                             .foregroundStyle(AnchorTheme.textSecondary)
                             .multilineTextAlignment(.leading)
                         Spacer()
@@ -49,7 +49,7 @@ private struct PinnedKitRow: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(kit.color.color.opacity(0.28))
                 Image(systemName: kit.symbolName)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.anchorBody(18))
                     .foregroundStyle(kit.color.color)
             }
             .frame(width: 44, height: 44)
@@ -57,11 +57,11 @@ private struct PinnedKitRow: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text(kit.name)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.anchorHeading(16))
                         .foregroundStyle(AnchorTheme.textPrimary)
                     Spacer()
                     Text(kit.items.isEmpty ? "―" : "\(kit.checkedCount) / \(kit.items.count)")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.anchorBody(13))
                         .foregroundStyle(kit.isComplete ? AnchorTheme.accent : AnchorTheme.textSecondary)
                 }
 
@@ -77,7 +77,7 @@ private struct PinnedKitRow: View {
             }
 
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(.anchorHeading(12))
                 .foregroundStyle(AnchorTheme.textSecondary)
         }
         .padding(14)
@@ -101,7 +101,7 @@ struct TodayItemsSection: View {
                 SectionHeader(title: "今日の持ち物")
                 Button(action: onOpen) {
                     Text("すべて見る")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.anchorHeading(13))
                         .foregroundStyle(AnchorTheme.accent)
                 }
                 .buttonStyle(.plain)
@@ -113,11 +113,11 @@ struct TodayItemsSection: View {
                         Image(systemName: "checkmark.seal.fill")
                             .foregroundStyle(AnchorTheme.accent)
                         Text(store.totalItemCount == 0 ? "持ち物セットを作ってみよう" : "今日の持ち物はすべて準備OK")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(.anchorBody(15))
                             .foregroundStyle(AnchorTheme.textPrimary)
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.anchorHeading(11))
                             .foregroundStyle(AnchorTheme.textSecondary)
                     }
                     .padding(16)
@@ -134,17 +134,17 @@ struct TodayItemsSection: View {
                                     .frame(width: 9, height: 9)
 
                                 Text(entry.item.name)
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(.anchorBody(15))
                                     .foregroundStyle(AnchorTheme.textPrimary)
 
                                 Spacer()
 
                                 Text(entry.kit.name)
-                                    .font(.system(size: 12))
+                                    .font(.anchorBody(12))
                                     .foregroundStyle(AnchorTheme.textSecondary)
 
                                 Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.anchorHeading(11))
                                     .foregroundStyle(AnchorTheme.textSecondary)
                             }
                             .padding(.horizontal, 16)
@@ -186,7 +186,7 @@ struct CrewSection: View {
                                 CrewAvatar(member: member, size: 36)
                             }
                             Text(member.name)
-                                .font(.system(size: 11))
+                                .font(.anchorBody(11))
                                 .foregroundStyle(AnchorTheme.textSecondary)
                                 .lineLimit(1)
                         }
@@ -198,10 +198,10 @@ struct CrewSection: View {
                     // 船倉シェアの担当が未定の場合のさりげない通知
                     HStack(spacing: 8) {
                         Image(systemName: "shippingbox")
-                            .font(.system(size: 12))
+                            .font(.anchorBody(12))
                             .foregroundStyle(AnchorTheme.tileMustard)
                         Text("\(unassigned.map(\.name).joined(separator: "・"))の担当がまだ決まっていません")
-                            .font(.system(size: 12))
+                            .font(.anchorBody(12))
                             .foregroundStyle(AnchorTheme.textSecondary)
                         Spacer()
                     }
@@ -234,10 +234,10 @@ struct PortLogSection: View {
                     Spacer()
                     VStack(spacing: 8) {
                         Image(systemName: "water.waves")
-                            .font(.system(size: 22))
+                            .font(.anchorBody(22))
                             .foregroundStyle(AnchorTheme.textSecondary)
                         Text("まだ記録がありません")
-                            .font(.system(size: 13))
+                            .font(.anchorBody(13))
                             .foregroundStyle(AnchorTheme.textSecondary)
                     }
                     Spacer()
@@ -253,18 +253,18 @@ struct PortLogSection: View {
                                 ZStack {
                                     voyage.tint.opacity(0.35)
                                     Image(systemName: voyage.symbolName)
-                                        .font(.system(size: 24))
+                                        .font(.anchorBody(24))
                                         .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
                                 }
                                 .frame(width: 132, height: 84)
 
                                 VStack(alignment: .leading, spacing: 3) {
                                     Text(voyage.title)
-                                        .font(.system(size: 13, weight: .semibold))
+                                        .font(.anchorHeading(13))
                                         .foregroundStyle(AnchorTheme.textPrimary)
                                         .lineLimit(1)
                                     Text(voyage.dateLabel)
-                                        .font(.system(size: 11))
+                                        .font(.anchorBody(11))
                                         .foregroundStyle(AnchorTheme.textSecondary)
                                 }
                                 .padding(10)

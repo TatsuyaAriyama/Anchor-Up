@@ -52,3 +52,23 @@ enum AnchorTheme {
     static let cornerLarge: CGFloat = 22
     static let cornerMedium: CGFloat = 16
 }
+
+// MARK: - タイポグラフィ
+// システムフォント(SF Pro)を避け、明朝体+セリフで「航海誌」の趣に統一する。
+
+extension Font {
+    /// 見出し・強調。明朝体の太字(W6)
+    static func anchorHeading(_ size: CGFloat) -> Font {
+        .custom("HiraMinProN-W6", size: size)
+    }
+
+    /// 本文・補足。明朝体の細字(W3)
+    static func anchorBody(_ size: CGFloat) -> Font {
+        .custom("HiraMinProN-W3", size: size)
+    }
+
+    /// 欧文・数字の飾り(ロゴ、パーセント、カウンタなど)。セリフ体
+    static func anchorDisplay(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+        .system(size: size, weight: weight, design: .serif)
+    }
+}

@@ -107,6 +107,11 @@ final class AnchorStore: ObservableObject {
         homeSections.move(fromOffsets: fromOffsets, toOffset: toOffset)
     }
 
+    func setSectionSize(_ kind: HomeSectionKind, _ size: HomeSectionSize) {
+        guard let i = homeSections.firstIndex(where: { $0.kind == kind }) else { return }
+        homeSections[i].size = size
+    }
+
     func resetHomeLayout() {
         homeSections = HomeSectionConfig.defaultLayout
     }

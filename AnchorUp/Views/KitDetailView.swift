@@ -63,10 +63,10 @@ struct KitDetailView: View {
                 // インライン追加
                 HStack(spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.anchorBody(20))
                         .foregroundStyle(AnchorTheme.accent)
                     TextField("持ち物を追加", text: $newItemName)
-                        .font(.system(size: 16))
+                        .font(.anchorBody(16))
                         .foregroundStyle(AnchorTheme.textPrimary)
                         .focused($addFieldFocused)
                         .submitLabel(.done)
@@ -75,7 +75,7 @@ struct KitDetailView: View {
                 .listRowBackground(AnchorTheme.surface)
             } header: {
                 Text(kit.items.isEmpty ? "" : "持ち物")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.anchorHeading(13))
                     .foregroundStyle(AnchorTheme.textSecondary)
                     .textCase(nil)
             }
@@ -175,17 +175,17 @@ private struct KitDetailHeader: View {
                 ZStack {
                     ProgressRing(progress: kit.progress, lineWidth: 6, tint: kit.color.color)
                     Image(systemName: kit.symbolName)
-                        .font(.system(size: 22, weight: .medium))
+                        .font(.anchorBody(22))
                         .foregroundStyle(kit.color.color)
                 }
                 .frame(width: 64, height: 64)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(kit.isComplete ? "準備OK!" : "準備中")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.anchorHeading(14))
                         .foregroundStyle(kit.isComplete ? AnchorTheme.accent : AnchorTheme.textSecondary)
                     Text(kit.items.isEmpty ? "持ち物を追加しよう" : "\(kit.checkedCount) / \(kit.items.count) 個 準備OK")
-                        .font(.system(size: 20, weight: .bold))
+                        .font(.anchorHeading(20))
                         .foregroundStyle(AnchorTheme.textPrimary)
                 }
                 Spacer()
@@ -194,7 +194,7 @@ private struct KitDetailHeader: View {
             if kit.checkedCount > 0 {
                 Button(action: onReset) {
                     Label("チェックをすべて外す", systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.anchorHeading(14))
                         .foregroundStyle(AnchorTheme.textPrimary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 11)
@@ -224,14 +224,14 @@ private struct KitItemRow: View {
                     if item.isChecked {
                         Circle().fill(AnchorTheme.seaShallow).frame(width: 26, height: 26)
                         Image(systemName: "checkmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.anchorHeading(13))
                             .foregroundStyle(AnchorTheme.moonGlow)
                     }
                 }
                 .animation(.spring(response: 0.3, dampingFraction: 0.6), value: item.isChecked)
 
                 Text(item.name)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.anchorBody(16))
                     .foregroundStyle(item.isChecked ? AnchorTheme.textSecondary : AnchorTheme.textPrimary)
                     .strikethrough(item.isChecked, color: AnchorTheme.textSecondary)
 
@@ -285,22 +285,22 @@ struct KitEditSheet: View {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .fill(color.color.opacity(0.28))
                                 Image(systemName: symbol)
-                                    .font(.system(size: 24, weight: .medium))
+                                    .font(.anchorBody(24))
                                     .foregroundStyle(color.color)
                             }
                             .frame(width: 56, height: 56)
                             Text(name.isEmpty ? "セット名" : name)
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.anchorHeading(18))
                                 .foregroundStyle(name.isEmpty ? AnchorTheme.textSecondary : AnchorTheme.textPrimary)
                             Spacer()
                         }
 
                         VStack(alignment: .leading, spacing: 8) {
                             Text("名前")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.anchorHeading(13))
                                 .foregroundStyle(AnchorTheme.textSecondary)
                             TextField("例: 仕事", text: $name)
-                                .font(.system(size: 17))
+                                .font(.anchorBody(17))
                                 .foregroundStyle(AnchorTheme.textPrimary)
                                 .focused($nameFocused)
                                 .padding(14)
@@ -309,7 +309,7 @@ struct KitEditSheet: View {
 
                         VStack(alignment: .leading, spacing: 10) {
                             Text("色")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.anchorHeading(13))
                                 .foregroundStyle(AnchorTheme.textSecondary)
                             HStack(spacing: 12) {
                                 ForEach(KitColor.allCases) { c in
@@ -332,12 +332,12 @@ struct KitEditSheet: View {
 
                         VStack(alignment: .leading, spacing: 10) {
                             Text("アイコン")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.anchorHeading(13))
                                 .foregroundStyle(AnchorTheme.textSecondary)
                             LazyVGrid(columns: symbolColumns, spacing: 10) {
                                 ForEach(KitSymbols.all, id: \.self) { s in
                                     Image(systemName: s)
-                                        .font(.system(size: 20))
+                                        .font(.anchorBody(20))
                                         .foregroundStyle(symbol == s ? AnchorTheme.seaDeep : AnchorTheme.textPrimary)
                                         .frame(width: 52, height: 52)
                                         .background {

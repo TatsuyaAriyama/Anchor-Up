@@ -15,20 +15,41 @@ struct HomeCustomizeView: View {
                         ForEach(store.homeSections) { config in
                             HStack(spacing: 12) {
                                 Image(systemName: config.kind.symbol)
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(.anchorBody(15))
                                     .foregroundStyle(config.isVisible ? AnchorTheme.hullTan : AnchorTheme.textSecondary)
                                     .frame(width: 26)
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(config.kind.title)
-                                        .font(.system(size: 16, weight: .medium))
+                                        .font(.anchorBody(16))
                                         .foregroundStyle(AnchorTheme.textPrimary)
                                     Text(config.kind.detail)
-                                        .font(.system(size: 12))
+                                        .font(.anchorBody(12))
                                         .foregroundStyle(AnchorTheme.textSecondary)
                                 }
 
                                 Spacer()
+
+                                // サイズ切替(全幅 ⇄ 半分)
+                                if config.isVisible {
+                                    Button {
+                                        let next: HomeSectionSize = config.size == .full ? .half : .full
+                                        store.setSectionSize(config.kind, next)
+                                        Haptics.tap()
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: config.size.symbol)
+                                                .font(.anchorBody(11))
+                                            Text(config.size.label)
+                                                .font(.anchorBody(11))
+                                        }
+                                        .foregroundStyle(AnchorTheme.textPrimary)
+                                        .padding(.horizontal, 9)
+                                        .padding(.vertical, 5)
+                                        .background(AnchorTheme.surfaceRaised, in: Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
 
                                 Toggle("", isOn: Binding(
                                     get: { config.isVisible },
@@ -45,7 +66,7 @@ struct HomeCustomizeView: View {
                         Text("表示するセクション")
                             .foregroundStyle(AnchorTheme.textSecondary)
                     } footer: {
-                        Text("左上の「編集」を押すとドラッグで並び替えできます。スイッチで表示/非表示を切り替えます。日付は常に上部に表示されます。")
+                        Text("左上の「編集」でドラッグ並び替え、スイッチで表示/非表示。「全幅/半分」でカードの大きさを選べます。半分どうしは横に2つ並び、自分だけの盤面を組めます。")
                             .foregroundStyle(AnchorTheme.textSecondary)
                     }
 

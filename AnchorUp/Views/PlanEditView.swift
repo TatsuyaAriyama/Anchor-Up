@@ -72,13 +72,13 @@ struct PlanEditView: View {
     private var basicSection: some View {
         Section {
             TextField("タイトル(例: 沖ノ島キャンプ)", text: $title)
-                .font(.system(size: 16))
+                .font(.anchorBody(16))
                 .foregroundStyle(AnchorTheme.textPrimary)
                 .focused($titleFocused)
                 .listRowBackground(AnchorTheme.surface)
 
             TextField("行き先(任意)", text: $destination)
-                .font(.system(size: 16))
+                .font(.anchorBody(16))
                 .foregroundStyle(AnchorTheme.textPrimary)
                 .listRowBackground(AnchorTheme.surface)
         } header: {
@@ -123,7 +123,7 @@ struct PlanEditView: View {
         Section {
             if store.kits.isEmpty {
                 Text("持ち物タブでセットを作ると、ここで選べます。")
-                    .font(.system(size: 13))
+                    .font(.anchorBody(13))
                     .foregroundStyle(AnchorTheme.textSecondary)
                     .listRowBackground(AnchorTheme.surface)
             } else {
@@ -137,24 +137,24 @@ struct PlanEditView: View {
                                 RoundedRectangle(cornerRadius: 9, style: .continuous)
                                     .fill(kit.color.color.opacity(0.28))
                                 Image(systemName: kit.symbolName)
-                                    .font(.system(size: 15, weight: .medium))
+                                    .font(.anchorBody(15))
                                     .foregroundStyle(kit.color.color)
                             }
                             .frame(width: 36, height: 36)
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(kit.name)
-                                    .font(.system(size: 16, weight: .medium))
+                                    .font(.anchorBody(16))
                                     .foregroundStyle(AnchorTheme.textPrimary)
                                 Text("\(kit.items.count) 個の持ち物")
-                                    .font(.system(size: 12))
+                                    .font(.anchorBody(12))
                                     .foregroundStyle(AnchorTheme.textSecondary)
                             }
 
                             Spacer()
 
                             Image(systemName: selectedKitIDs.contains(kit.id) ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 20))
+                                .font(.anchorBody(20))
                                 .foregroundStyle(selectedKitIDs.contains(kit.id) ? AnchorTheme.accent : AnchorTheme.textSecondary.opacity(0.6))
                         }
                     }
