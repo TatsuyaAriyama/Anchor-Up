@@ -216,7 +216,30 @@ struct CrewOverviewSection: View {
 
             Button(action: onOpen) {
                 Group {
-                    if store.crew.isEmpty {
+                    if let plan = store.nextPlan, !plan.holdItems.isEmpty {
+                        // 船倉の分担状況を優先して見せる
+                        let unassigned = plan.holdItems.filter { !$0.isAssigned }
+                        HStack(spacing: 12) {
+                            Image(systemName: "shippingbox.fill")
+                                .font(.anchorBody(18))
+                                .foregroundStyle(unassigned.isEmpty ? AnchorTheme.hullTan : AnchorTheme.accent)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("船倉の分担")
+                                    .font(.anchorHeading(14))
+                                    .foregroundStyle(AnchorTheme.textPrimary)
+                                Text(unassigned.isEmpty
+                                     ? "全員の分担が決まりました"
+                                     : "\(unassigned.map(\.name).joined(separator: "・"))が未定")
+                                    .font(.anchorBody(12))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.anchorHeading(12))
+                                .foregroundStyle(AnchorTheme.textSecondary)
+                        }
+                    } else if store.crew.isEmpty {
                         HStack(spacing: 10) {
                             Image(systemName: "person.badge.plus")
                                 .foregroundStyle(AnchorTheme.hullTan)

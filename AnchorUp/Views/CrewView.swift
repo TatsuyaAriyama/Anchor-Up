@@ -1,41 +1,33 @@
 import SwiftUI
 
-/// 乗組員タブ。一緒に出かける仲間をローカルに登録して管理する。
+/// 乗組員タブ。次の航海の「船倉(みんなで分担する持ち物)」と、乗組員名簿を管理する。
 struct CrewView: View {
     @ObservedObject var store: AnchorStore
-    @State private var showingAdd = false
+    @State private var showingAddCrew = false
     @State private var editing: Crewmate?
+    @State private var newHoldName = ""
+    @FocusState private var holdFocused: Bool
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 22) {
                 header
 
-                if store.crew.isEmpty {
-                    emptyState
+                if let plan = store.nextPlan {
+                    HoldCard(store: store, plan: plan,
+                             newHoldName: $newHoldName, holdFocused: $holdFocused)
                 } else {
-                    VStack(spacing: 10) {
-                        ForEach(store.crew) { mate in
-                            Button {
-                                Haptics.tap()
-                                editing = mate
-                            } label: {
-                                CrewRow(mate: mate)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
+                    holdEmpty
                 }
+
+                rosterSection
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
             .padding(.bottom, 190) // 舵輪ぶんの余白
         }
         .scrollIndicators(.hidden)
-        .overlay(alignment: .top) {
-            addButton
-        }
-        .sheet(isPresented: $showingAdd) {
+        .sheet(isPresented: $showingAddCrew) {
             CrewEditSheet(title: "乗組員を追加") { name, note in
                 if let mate = store.addCrew(name: name) {
                     store.updateCrew(mate, name: name, note: note)
@@ -55,92 +47,303 @@ struct CrewView: View {
         }
     }
 
+    // MARK: - ヘッダー
+
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("乗組員")
-                    .font(.anchorHeading(26))
-                    .foregroundStyle(AnchorTheme.textPrimary)
-                Text("一緒に航海する仲間")
+        VStack(alignment: .leading, spacing: 4) {
+            Text("乗組員")
+                .font(.anchorHeading(26))
+                .foregroundStyle(AnchorTheme.textPrimary)
+            Text("船倉の分担と、仲間の名簿")
+                .font(.anchorBody(13))
+                .foregroundStyle(AnchorTheme.textSecondary)
+        }
+    }
+
+    // MARK: - 船倉(予定が無い時)
+
+    private var holdEmpty: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "船倉")
+            HStack(spacing: 10) {
+                Image(systemName: "shippingbox")
+                    .foregroundStyle(AnchorTheme.textSecondary)
+                Text("予定を立てると、共有の持ち物を仲間で分担できます。")
                     .font(.anchorBody(13))
                     .foregroundStyle(AnchorTheme.textSecondary)
+                Spacer(minLength: 0)
             }
-            Spacer()
+            .padding(16)
+            .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
         }
     }
 
-    private var addButton: some View {
-        HStack {
-            Spacer()
-            Button {
-                Haptics.tap()
-                showingAdd = true
-            } label: {
-                Label("追加", systemImage: "person.badge.plus")
-                    .font(.anchorHeading(13))
-                    .foregroundStyle(AnchorTheme.accent)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(AnchorTheme.background.opacity(0.6), in: Capsule())
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.trailing, 20)
-        .padding(.top, 26)
-    }
+    // MARK: - 名簿
 
-    private var emptyState: some View {
-        VStack(spacing: 14) {
-            Image(systemName: "flag.2.crossed")
-                .font(.anchorBody(40))
-                .foregroundStyle(AnchorTheme.textSecondary.opacity(0.7))
-            Text("まだ乗組員がいません。\n一緒に出かける仲間を登録しよう。")
-                .font(.anchorBody(14))
-                .foregroundStyle(AnchorTheme.textSecondary)
-                .multilineTextAlignment(.center)
+    private var rosterSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                SectionHeader(title: "乗組員名簿")
+                Button {
+                    Haptics.tap()
+                    showingAddCrew = true
+                } label: {
+                    Label("追加", systemImage: "person.badge.plus")
+                        .font(.anchorHeading(13))
+                        .foregroundStyle(AnchorTheme.accent)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if store.crew.isEmpty {
+                HStack(spacing: 10) {
+                    Image(systemName: "flag.2.crossed")
+                        .foregroundStyle(AnchorTheme.textSecondary)
+                    Text("一緒に出かける仲間を登録しよう")
+                        .font(.anchorBody(13))
+                        .foregroundStyle(AnchorTheme.textSecondary)
+                    Spacer(minLength: 0)
+                }
+                .padding(16)
+                .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(store.crew) { mate in
+                        Button {
+                            Haptics.tap()
+                            editing = mate
+                        } label: {
+                            HStack(spacing: 14) {
+                                CrewmateAvatar(mate: mate, size: 42)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(mate.name)
+                                        .font(.anchorHeading(15))
+                                        .foregroundStyle(AnchorTheme.textPrimary)
+                                    if !mate.note.isEmpty {
+                                        Text(mate.note)
+                                            .font(.anchorBody(12))
+                                            .foregroundStyle(AnchorTheme.textSecondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.anchorHeading(12))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                            }
+                            .padding(14)
+                            .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 60)
     }
 }
 
-private struct CrewRow: View {
-    let mate: Crewmate
+// MARK: - 船倉カード(分担の仕切り)
+
+private struct HoldCard: View {
+    @ObservedObject var store: AnchorStore
+    let plan: Voyage
+    @Binding var newHoldName: String
+    var holdFocused: FocusState<Bool>.Binding
+
+    private var assignedCount: Int { plan.holdItems.filter(\.isAssigned).count }
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle().fill(mate.color)
-                Text(mate.initial)
-                    .font(.anchorHeading(18))
-                    .foregroundStyle(AnchorTheme.textPrimary)
-            }
-            .frame(width: 46, height: 46)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(mate.name)
-                    .font(.anchorHeading(16))
-                    .foregroundStyle(AnchorTheme.textPrimary)
-                if !mate.note.isEmpty {
-                    Text(mate.note)
+        VStack(alignment: .leading, spacing: 12) {
+            // 見出し
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(AnchorTheme.hullTan.opacity(0.16))
+                    Image(systemName: "shippingbox.fill")
+                        .font(.anchorBody(16))
+                        .foregroundStyle(AnchorTheme.hullTan)
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("船倉")
+                        .font(.anchorHeading(16))
+                        .foregroundStyle(AnchorTheme.textPrimary)
+                    Text("\(plan.title) の分担")
                         .font(.anchorBody(12))
                         .foregroundStyle(AnchorTheme.textSecondary)
-                        .lineLimit(1)
+                }
+                Spacer()
+                if !plan.holdItems.isEmpty {
+                    Text("\(assignedCount)/\(plan.holdItems.count)")
+                        .font(.anchorDisplay(14, weight: .semibold))
+                        .foregroundStyle(assignedCount == plan.holdItems.count ? AnchorTheme.accent : AnchorTheme.textSecondary)
                 }
             }
 
-            Spacer()
+            if plan.holdItems.isEmpty {
+                Text("テント・クーラー・ランタンなど、誰か一人が持てば足りる物を積もう。")
+                    .font(.anchorBody(12))
+                    .foregroundStyle(AnchorTheme.textSecondary)
+                    .padding(.vertical, 4)
+            }
 
-            Image(systemName: "chevron.right")
-                .font(.anchorHeading(12))
-                .foregroundStyle(AnchorTheme.textSecondary)
+            // 木箱(共有アイテム)を積む
+            VStack(spacing: 8) {
+                ForEach(plan.holdItems) { item in
+                    HoldRow(store: store, plan: plan, item: item)
+                }
+                addRow
+            }
+
+            // 分担を共有
+            if !plan.holdItems.isEmpty {
+                HStack {
+                    if assignedCount < plan.holdItems.count {
+                        Label("\(plan.holdItems.count - assignedCount)件が未定", systemImage: "exclamationmark.circle")
+                            .font(.anchorBody(12))
+                            .foregroundStyle(AnchorTheme.accent)
+                    } else {
+                        Label("分担が決まりました", systemImage: "checkmark.seal")
+                            .font(.anchorBody(12))
+                            .foregroundStyle(AnchorTheme.accent)
+                    }
+                    Spacer()
+                    ShareLink(item: store.holdManifestText(for: plan)) {
+                        Label("分担を共有", systemImage: "square.and.arrow.up")
+                            .font(.anchorHeading(13))
+                            .foregroundStyle(AnchorTheme.seaDeep)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
+                            .background(AnchorTheme.hullTan, in: Capsule())
+                    }
+                }
+                .padding(.top, 2)
+            }
         }
-        .padding(14)
-        .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+        .padding(16)
+        .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerLarge, style: .continuous))
+    }
+
+    private var addRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus.circle.fill")
+                .font(.anchorBody(20))
+                .foregroundStyle(AnchorTheme.accent)
+            TextField("船倉に積む(例: テント)", text: $newHoldName)
+                .font(.anchorBody(15))
+                .foregroundStyle(AnchorTheme.textPrimary)
+                .focused(holdFocused)
+                .submitLabel(.done)
+                .onSubmit(addHold)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AnchorTheme.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func addHold() {
+        let trimmed = newHoldName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        store.addHoldItem(to: plan, name: trimmed)
+        newHoldName = ""
+        Haptics.tap()
+        holdFocused.wrappedValue = true
     }
 }
 
-// MARK: - 追加/編集シート
+private struct HoldRow: View {
+    @ObservedObject var store: AnchorStore
+    let plan: Voyage
+    let item: HoldItem
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // 木箱アイコン(担当済みは満載、未定は空箱)
+            Image(systemName: item.isAssigned ? "shippingbox.fill" : "shippingbox")
+                .font(.anchorBody(16))
+                .foregroundStyle(item.isAssigned ? AnchorTheme.hullTan : AnchorTheme.accent)
+                .frame(width: 26)
+
+            Text(item.name)
+                .font(.anchorBody(15))
+                .foregroundStyle(AnchorTheme.textPrimary)
+
+            Spacer()
+
+            // 担当のピッカー(メニュー)
+            Menu {
+                Button { assign(.me) } label: { Label("あなた", systemImage: "person.fill") }
+                ForEach(store.crew) { mate in
+                    Button { assign(.crew(mate.id)) } label: { Text(mate.name) }
+                }
+                Button { assign(.unassigned) } label: { Label("未定にする", systemImage: "questionmark") }
+                Divider()
+                Button(role: .destructive) {
+                    withAnimation { store.deleteHoldItem(in: plan, item: item) }
+                } label: {
+                    Label("船倉から降ろす", systemImage: "trash")
+                }
+            } label: {
+                assigneeChip
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(AnchorTheme.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var assigneeChip: some View {
+        switch item.assignee {
+        case .unassigned:
+            Text("担当を決める")
+                .font(.anchorHeading(12))
+                .foregroundStyle(AnchorTheme.seaDeep)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(AnchorTheme.accent, in: Capsule())
+        case .me:
+            chip(text: "あなた", color: AnchorTheme.tileIndigo, initial: "あ")
+        case .crew(let id):
+            if let mate = store.crew.first(where: { $0.id == id }) {
+                chip(text: mate.name, color: mate.color, initial: mate.initial)
+            } else {
+                Text("担当を決める")
+                    .font(.anchorHeading(12))
+                    .foregroundStyle(AnchorTheme.seaDeep)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(AnchorTheme.accent, in: Capsule())
+            }
+        }
+    }
+
+    private func chip(text: String, color: Color, initial: String) -> some View {
+        HStack(spacing: 6) {
+            ZStack {
+                Circle().fill(color)
+                Text(initial).font(.anchorHeading(10)).foregroundStyle(AnchorTheme.textPrimary)
+            }
+            .frame(width: 22, height: 22)
+            Text(text)
+                .font(.anchorBody(13))
+                .foregroundStyle(AnchorTheme.textPrimary)
+        }
+        .padding(.leading, 4)
+        .padding(.trailing, 10)
+        .padding(.vertical, 4)
+        .background(AnchorTheme.background.opacity(0.5), in: Capsule())
+    }
+
+    private func assign(_ a: HoldAssignee) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            store.assignHold(in: plan, item: item, to: a)
+        }
+        Haptics.tap()
+    }
+}
+
+// MARK: - 乗組員の追加/編集シート
 
 private struct CrewEditSheet: View {
     @Environment(\.dismiss) private var dismiss

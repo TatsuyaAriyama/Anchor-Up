@@ -143,6 +143,55 @@ final class AnchorStore: ObservableObject {
         plans[i].completedAt = Date()
     }
 
+    // MARK: - 船倉(共有アイテムの分担)
+
+    func addHoldItem(to plan: Voyage, name: String) {
+        guard let i = plans.firstIndex(where: { $0.id == plan.id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        plans[i].holdItems.append(HoldItem(name: trimmed))
+    }
+
+    func deleteHoldItem(in plan: Voyage, item: HoldItem) {
+        guard let i = plans.firstIndex(where: { $0.id == plan.id }) else { return }
+        plans[i].holdItems.removeAll { $0.id == item.id }
+    }
+
+    func assignHold(in plan: Voyage, item: HoldItem, to assignee: HoldAssignee) {
+        guard let pi = plans.firstIndex(where: { $0.id == plan.id }),
+              let ii = plans[pi].holdItems.firstIndex(where: { $0.id == item.id }) else { return }
+        plans[pi].holdItems[ii].assignee = assignee
+    }
+
+    /// 担当の乗組員(見つからなければ nil)
+    func crewmate(for assignee: HoldAssignee) -> Crewmate? {
+        if case let .crew(id) = assignee { return crew.first { $0.id == id } }
+        return nil
+    }
+
+    /// 担当の表示名
+    func assigneeName(_ assignee: HoldAssignee) -> String {
+        switch assignee {
+        case .unassigned: "未定"
+        case .me: "あなた"
+        case .crew(let id): crew.first { $0.id == id }?.name ?? "未定"
+        }
+    }
+
+    /// 分担を共有するためのテキスト
+    func holdManifestText(for plan: Voyage) -> String {
+        var lines = ["⚓︎ \(plan.title) の船倉(持ち物分担)"]
+        if plan.holdItems.isEmpty {
+            lines.append("(まだ登録がありません)")
+        } else {
+            for item in plan.holdItems {
+                lines.append("・\(item.name) → \(assigneeName(item.assignee))")
+            }
+        }
+        lines.append("— Anchor Up")
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: - ホームのレイアウト
 
     func setSectionVisible(_ kind: HomeSectionKind, _ visible: Bool) {

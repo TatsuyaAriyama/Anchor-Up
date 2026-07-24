@@ -46,6 +46,8 @@ struct Voyage: Identifiable, Codable, Equatable {
     var linkedKitIDs: [UUID]
     /// 「Anchor Up」で出航済みにした日時。nil なら未出航
     var completedAt: Date?
+    /// 船倉(みんなで分担する共有の持ち物)
+    var holdItems: [HoldItem]
 
     init(
         id: UUID = UUID(),
@@ -54,7 +56,8 @@ struct Voyage: Identifiable, Codable, Equatable {
         date: Date,
         hasTime: Bool = false,
         linkedKitIDs: [UUID] = [],
-        completedAt: Date? = nil
+        completedAt: Date? = nil,
+        holdItems: [HoldItem] = []
     ) {
         self.id = id
         self.title = title
@@ -63,6 +66,7 @@ struct Voyage: Identifiable, Codable, Equatable {
         self.hasTime = hasTime
         self.linkedKitIDs = linkedKitIDs
         self.completedAt = completedAt
+        self.holdItems = holdItems
     }
 
     /// 出航まで残り日数(過去なら負、当日は 0)
@@ -99,6 +103,42 @@ struct Voyage: Identifiable, Codable, Equatable {
         )
         return "\(base) \(time)"
     }
+}
+
+// holdItems は後から追加したため、旧データでも読めるよう明示デコード
+extension Voyage {
+    enum CodingKeys: String, CodingKey {
+        case id, title, destination, date, hasTime, linkedKitIDs, completedAt, holdItems
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        title = try c.decode(String.self, forKey: .title)
+        destination = try c.decodeIfPresent(String.self, forKey: .destination) ?? ""
+        date = try c.decode(Date.self, forKey: .date)
+        hasTime = try c.decodeIfPresent(Bool.self, forKey: .hasTime) ?? false
+        linkedKitIDs = try c.decodeIfPresent([UUID].self, forKey: .linkedKitIDs) ?? []
+        completedAt = try c.decodeIfPresent(Date.self, forKey: .completedAt)
+        holdItems = try c.decodeIfPresent([HoldItem].self, forKey: .holdItems) ?? []
+    }
+}
+
+// MARK: - 船倉(みんなで分担する共有の持ち物)
+
+/// 船倉アイテムの担当
+enum HoldAssignee: Codable, Equatable {
+    case unassigned  // 未定
+    case me          // あなた
+    case crew(UUID)  // 乗組員
+}
+
+struct HoldItem: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var assignee: HoldAssignee = .unassigned
+
+    var isAssigned: Bool { assignee != .unassigned }
 }
 
 // MARK: - 過去の記録(寄港の記録セクションのデモ用)
