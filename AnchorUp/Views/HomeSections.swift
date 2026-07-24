@@ -1,5 +1,90 @@
 import SwiftUI
 
+// MARK: - ピン留めセット
+
+struct PinnedKitsSection: View {
+    @ObservedObject var store: AnchorStore
+    var onOpen: () -> Void = {}
+
+    var body: some View {
+        let pinned = store.pinnedKits
+        VStack(spacing: 10) {
+            SectionHeader(title: "ピン留めセット")
+
+            if pinned.isEmpty {
+                Button(action: onOpen) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "pin")
+                            .foregroundStyle(AnchorTheme.textSecondary)
+                        Text("持ち物タブでセットをピン留めすると、ここに並びます")
+                            .font(.system(size: 13))
+                            .foregroundStyle(AnchorTheme.textSecondary)
+                            .multilineTextAlignment(.leading)
+                        Spacer()
+                    }
+                    .padding(16)
+                    .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 10) {
+                    ForEach(pinned) { kit in
+                        Button(action: onOpen) {
+                            PinnedKitRow(kit: kit)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct PinnedKitRow: View {
+    let kit: PackingKit
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(kit.color.color.opacity(0.28))
+                Image(systemName: kit.symbolName)
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(kit.color.color)
+            }
+            .frame(width: 44, height: 44)
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(kit.name)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(AnchorTheme.textPrimary)
+                    Spacer()
+                    Text(kit.items.isEmpty ? "―" : "\(kit.checkedCount) / \(kit.items.count)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(kit.isComplete ? AnchorTheme.accent : AnchorTheme.textSecondary)
+                }
+
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(AnchorTheme.moonGlow.opacity(0.12))
+                        Capsule()
+                            .fill(kit.color.color)
+                            .frame(width: max(kit.items.isEmpty ? 0 : 5, geo.size.width * kit.progress))
+                    }
+                }
+                .frame(height: 5)
+            }
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AnchorTheme.textSecondary)
+        }
+        .padding(14)
+        .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+    }
+}
+
 // MARK: - 今日の持ち物(全セットから未チェックを抜粋)
 
 struct TodayItemsSection: View {

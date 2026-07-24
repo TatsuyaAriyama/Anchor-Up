@@ -132,6 +132,13 @@ private struct KitCard: View {
 
                 Spacer()
 
+                if kit.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(AnchorTheme.hullTan)
+                        .rotationEffect(.degrees(45))
+                }
+
                 if kit.isComplete {
                     Image(systemName: "checkmark.seal.fill")
                         .font(.system(size: 18))

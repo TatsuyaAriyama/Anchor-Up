@@ -34,11 +34,30 @@ struct PackingKit: Identifiable, Codable, Equatable {
     var symbolName: String
     var color: KitColor
     var items: [KitItem]
+    /// ホームにピン留めしているか
+    var isPinned: Bool = false
 
     var checkedCount: Int { items.filter(\.isChecked).count }
     var progress: Double { items.isEmpty ? 0 : Double(checkedCount) / Double(items.count) }
     var isComplete: Bool { !items.isEmpty && checkedCount == items.count }
     var remaining: [KitItem] { items.filter { !$0.isChecked } }
+}
+
+extension PackingKit {
+    enum CodingKeys: String, CodingKey {
+        case id, name, symbolName, color, items, isPinned
+    }
+
+    // isPinnedは後から追加したため、旧データ(キー無し)でも読めるようにする
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        symbolName = try c.decode(String.self, forKey: .symbolName)
+        color = try c.decode(KitColor.self, forKey: .color)
+        items = try c.decode([KitItem].self, forKey: .items)
+        isPinned = try c.decodeIfPresent(Bool.self, forKey: .isPinned) ?? false
+    }
 }
 
 // MARK: - アイコン候補(セット作成・編集で使う)

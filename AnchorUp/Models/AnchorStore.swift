@@ -8,16 +8,46 @@ final class AnchorStore: ObservableObject {
     /// 用途別の持ち物セット。変更のたびに保存する。
     @Published var kits: [PackingKit] { didSet { save() } }
 
+    /// ホーム画面のセクション構成(順序・表示/非表示)
+    @Published var homeSections: [HomeSectionConfig] { didSet { saveLayout() } }
+
     /// ホームのヒーローに出す航海(旅行の予定)
     @Published var voyage: Voyage
 
     private let kitsKey = "anchorup.kits.v1"
+    private let layoutKey = "anchorup.homeLayout.v1"
 
     var me: CrewMember { voyage.crew.first ?? SampleData.you }
 
     init(voyage: Voyage = SampleData.nextVoyage) {
         self.voyage = voyage
         self.kits = Self.load(key: "anchorup.kits.v1") ?? DefaultKits.seed()
+        let savedLayout = Self.loadLayout(key: "anchorup.homeLayout.v1")
+        self.homeSections = HomeSectionConfig.reconciled(savedLayout ?? HomeSectionConfig.defaultLayout)
+    }
+
+    // MARK: - ホームのレイアウト
+
+    func setSectionVisible(_ kind: HomeSectionKind, _ visible: Bool) {
+        guard let i = homeSections.firstIndex(where: { $0.kind == kind }) else { return }
+        homeSections[i].isVisible = visible
+    }
+
+    func moveSections(fromOffsets: IndexSet, toOffset: Int) {
+        homeSections.move(fromOffsets: fromOffsets, toOffset: toOffset)
+    }
+
+    func resetHomeLayout() {
+        homeSections = HomeSectionConfig.defaultLayout
+    }
+
+    // MARK: - ピン留め
+
+    var pinnedKits: [PackingKit] { kits.filter(\.isPinned) }
+
+    func togglePin(_ kit: PackingKit) {
+        guard let i = kits.firstIndex(where: { $0.id == kit.id }) else { return }
+        kits[i].isPinned.toggle()
     }
 
     // MARK: - 全体の集計(ホーム用)
@@ -136,5 +166,16 @@ final class AnchorStore: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: key),
               let kits = try? JSONDecoder().decode([PackingKit].self, from: data) else { return nil }
         return kits
+    }
+
+    private func saveLayout() {
+        guard let data = try? JSONEncoder().encode(homeSections) else { return }
+        UserDefaults.standard.set(data, forKey: layoutKey)
+    }
+
+    private static func loadLayout(key: String) -> [HomeSectionConfig]? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let layout = try? JSONDecoder().decode([HomeSectionConfig].self, from: data) else { return nil }
+        return layout
     }
 }

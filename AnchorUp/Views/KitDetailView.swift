@@ -96,6 +96,13 @@ struct KitDetailView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
                     Button {
+                        store.togglePin(kit)
+                        Haptics.tap()
+                    } label: {
+                        Label(kit.isPinned ? "ホームのピン留めを外す" : "ホームにピン留め",
+                              systemImage: kit.isPinned ? "pin.slash" : "pin")
+                    }
+                    Button {
                         showingEdit = true
                     } label: {
                         Label("セットを編集", systemImage: "pencil")

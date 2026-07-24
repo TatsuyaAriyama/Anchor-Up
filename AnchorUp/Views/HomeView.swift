@@ -5,6 +5,7 @@ struct HomeView: View {
     @StateObject private var notifications = NotificationManager()
     @State private var selectedTab: AppTab = .home
     @State private var showingSettings = false
+    @State private var showingCustomize = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -51,6 +52,9 @@ struct HomeView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView(store: store, notifications: notifications)
         }
+        .sheet(isPresented: $showingCustomize) {
+            HomeCustomizeView(store: store)
+        }
         .onAppear {
             notifications.refreshAuthStatus()
             notifications.rescheduleIfEnabled(itemCount: store.totalItemCount)
@@ -70,15 +74,30 @@ struct HomeView: View {
 
             Spacer()
 
-            Button {
-                Haptics.tap()
-                showingSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 18))
-                    .foregroundStyle(AnchorTheme.textSecondary)
+            HStack(spacing: 18) {
+                // ホームタブでのみカスタマイズ導線を出す
+                if selectedTab == .home {
+                    Button {
+                        Haptics.tap()
+                        showingCustomize = true
+                    } label: {
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.system(size: 18))
+                            .foregroundStyle(AnchorTheme.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button {
+                    Haptics.tap()
+                    showingSettings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 18))
+                        .foregroundStyle(AnchorTheme.textSecondary)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
         }
     }
 
@@ -104,23 +123,12 @@ struct HomeView: View {
             VStack(spacing: 24) {
                 dateHeader
 
-                HeroCard(
-                    voyage: store.voyage,
-                    onAnchorUp: {
-                        // TODO: 全乗組員への出航通知
-                    },
-                    onCreateVoyage: {
-                        // TODO: 新規予定作成フローへ
+                // レイアウト設定に従って、表示中のセクションを順に並べる
+                ForEach(store.homeSections) { config in
+                    if config.isVisible {
+                        sectionView(config.kind)
                     }
-                )
-
-                TodayItemsSection(store: store) {
-                    withAnimation { selectedTab = .packing }
                 }
-
-                CrewSection(crew: store.voyage.crew, sharedItems: store.voyage.sharedItems)
-
-                PortLogSection(pastVoyages: SampleData.pastVoyages)
 
                 // FABに隠れないよう余白を確保
                 Color.clear.frame(height: 60)
@@ -129,6 +137,34 @@ struct HomeView: View {
             .padding(.top, 20)
         }
         .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder
+    private func sectionView(_ kind: HomeSectionKind) -> some View {
+        switch kind {
+        case .todayItems:
+            TodayItemsSection(store: store) {
+                withAnimation { selectedTab = .packing }
+            }
+        case .pinnedKits:
+            PinnedKitsSection(store: store) {
+                withAnimation { selectedTab = .packing }
+            }
+        case .nextVoyage:
+            HeroCard(
+                voyage: store.voyage,
+                onAnchorUp: {
+                    // TODO: 全乗組員への出航通知
+                },
+                onCreateVoyage: {
+                    // TODO: 新規予定作成フローへ
+                }
+            )
+        case .crew:
+            CrewSection(crew: store.voyage.crew, sharedItems: store.voyage.sharedItems)
+        case .portLog:
+            PortLogSection(pastVoyages: SampleData.pastVoyages)
+        }
     }
 
     // MARK: - 未実装タブ
