@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct HomeView: View {
+    @StateObject private var store = AnchorStore()
     @State private var selectedTab: AppTab = .home
-    @State private var voyage: Voyage? = SampleData.nextVoyage
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -22,25 +22,29 @@ struct HomeView: View {
                 switch selectedTab {
                 case .home:
                     homeContent
+                case .packing:
+                    PackingListView(store: store)
                 default:
                     placeholderContent
                 }
             }
 
-            // フローティングアクションボタン: 新規予定作成
-            Button {
-                // TODO: 新規予定作成フローへ
-            } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(AnchorTheme.moonGlow)
-                    .frame(width: 56, height: 56)
-                    .background(AnchorTheme.accent, in: Circle())
-                    .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+            // ホームタブのみ: 新規予定作成のFAB(持ち物タブは自前のFABを持つ)
+            if selectedTab == .home {
+                Button {
+                    // TODO: 新規予定作成フローへ
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(AnchorTheme.moonGlow)
+                        .frame(width: 56, height: 56)
+                        .background(AnchorTheme.accent, in: Circle())
+                        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 20)
+                .padding(.bottom, 24)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, 20)
-            .padding(.bottom, 24)
         }
     }
 
@@ -91,7 +95,7 @@ struct HomeView: View {
                 dateHeader
 
                 HeroCard(
-                    voyage: voyage,
+                    voyage: store.voyage,
                     onAnchorUp: {
                         // TODO: 全乗組員への出航通知
                     },
@@ -100,13 +104,11 @@ struct HomeView: View {
                     }
                 )
 
-                if let voyage {
-                    MyStationSection(items: voyage.myItems) {
-                        // TODO: 持ち物リスト詳細へ遷移
-                    }
-
-                    CrewSection(crew: voyage.crew, sharedItems: voyage.sharedItems)
+                MyStationSection(items: store.voyage.myItems) {
+                    withAnimation { selectedTab = .packing }
                 }
+
+                CrewSection(crew: store.voyage.crew, sharedItems: store.voyage.sharedItems)
 
                 PortLogSection(pastVoyages: SampleData.pastVoyages)
 

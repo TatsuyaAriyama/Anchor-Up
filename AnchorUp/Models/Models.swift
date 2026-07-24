@@ -2,13 +2,56 @@ import SwiftUI
 
 // MARK: - 乗組員
 
-struct CrewMember: Identifiable {
-    let id = UUID()
+struct CrewMember: Identifiable, Equatable {
+    let id: UUID
     let name: String
     let initial: String
     let color: Color
     /// 持ち物準備の進捗 (0.0 - 1.0)
-    let progress: Double
+    var progress: Double
+
+    init(id: UUID = UUID(), name: String, initial: String, color: Color, progress: Double) {
+        self.id = id
+        self.name = name
+        self.initial = initial
+        self.color = color
+        self.progress = progress
+    }
+}
+
+// MARK: - 持ち物のカテゴリ
+
+enum PackingCategory: String, CaseIterable, Identifiable {
+    case gear = "道具"
+    case clothing = "衣類"
+    case electronics = "電子機器"
+    case food = "食料・水"
+    case health = "救急・衛生"
+    case other = "その他"
+
+    var id: String { rawValue }
+
+    var symbolName: String {
+        switch self {
+        case .gear: "backpack"
+        case .clothing: "tshirt"
+        case .electronics: "bolt.batteryblock"
+        case .food: "fork.knife"
+        case .health: "cross.case"
+        case .other: "shippingbox"
+        }
+    }
+
+    var tint: Color {
+        switch self {
+        case .gear: AnchorTheme.hullTan
+        case .clothing: AnchorTheme.tileIndigo
+        case .electronics: AnchorTheme.tileCharcoal
+        case .food: AnchorTheme.tileMustard
+        case .health: AnchorTheme.tileTerracotta
+        case .other: AnchorTheme.seaShallow
+        }
+    }
 }
 
 // MARK: - 持ち物アイテム
@@ -34,32 +77,73 @@ enum PackingStatus {
         case .done: "完了"
         }
     }
+
+    /// タップで次の状態へ(未完了→準備中→完了→未完了)
+    var next: PackingStatus {
+        switch self {
+        case .notStarted: .inProgress
+        case .inProgress: .done
+        case .done: .notStarted
+        }
+    }
 }
 
 struct PackingItem: Identifiable {
-    let id = UUID()
-    let name: String
-    let status: PackingStatus
+    let id: UUID
+    var name: String
+    var status: PackingStatus
+    var category: PackingCategory
+
+    init(id: UUID = UUID(), name: String, status: PackingStatus = .notStarted, category: PackingCategory = .other) {
+        self.id = id
+        self.name = name
+        self.status = status
+        self.category = category
+    }
 }
 
 /// 誰か一人が持てば足りる共有アイテム(船倉シェア)
 struct SharedItem: Identifiable {
-    let id = UUID()
-    let name: String
+    let id: UUID
+    var name: String
     /// 担当者。nil なら未定
-    let assignee: CrewMember?
+    var assignee: CrewMember?
+
+    init(id: UUID = UUID(), name: String, assignee: CrewMember? = nil) {
+        self.id = id
+        self.name = name
+        self.assignee = assignee
+    }
 }
 
 // MARK: - 航海(予定)
 
 struct Voyage: Identifiable {
-    let id = UUID()
-    let title: String
-    let destination: String
-    let departureDate: Date
-    let crew: [CrewMember]
-    let myItems: [PackingItem]
-    let sharedItems: [SharedItem]
+    let id: UUID
+    var title: String
+    var destination: String
+    var departureDate: Date
+    var crew: [CrewMember]
+    var myItems: [PackingItem]
+    var sharedItems: [SharedItem]
+
+    init(
+        id: UUID = UUID(),
+        title: String,
+        destination: String,
+        departureDate: Date,
+        crew: [CrewMember],
+        myItems: [PackingItem],
+        sharedItems: [SharedItem]
+    ) {
+        self.id = id
+        self.title = title
+        self.destination = destination
+        self.departureDate = departureDate
+        self.crew = crew
+        self.myItems = myItems
+        self.sharedItems = sharedItems
+    }
 
     /// 出航まで残り日数(当日は 0)
     var daysUntilDeparture: Int {
@@ -76,7 +160,9 @@ struct Voyage: Identifiable {
         return Double(done) / Double(myItems.count)
     }
 
-    var isReadyToSail: Bool { myProgress >= 1.0 }
+    var doneCount: Int { myItems.filter { $0.status == .done }.count }
+
+    var isReadyToSail: Bool { !myItems.isEmpty && myProgress >= 1.0 }
 }
 
 /// 完了した過去の航海
@@ -91,12 +177,13 @@ struct PastVoyage: Identifiable {
 // MARK: - サンプルデータ
 
 enum SampleData {
-    static let crew: [CrewMember] = [
-        CrewMember(name: "あなた", initial: "あ", color: AnchorTheme.tileIndigo, progress: 0.6),
-        CrewMember(name: "ハルカ", initial: "ハ", color: AnchorTheme.tileTerracotta, progress: 0.9),
-        CrewMember(name: "ケンタ", initial: "ケ", color: AnchorTheme.tileMustard, progress: 0.3),
-        CrewMember(name: "ミオ", initial: "ミ", color: AnchorTheme.tileCharcoal, progress: 1.0),
-    ]
+    // 乗組員のIDを固定して、共有アイテムの担当参照と一致させる
+    static let you = CrewMember(name: "あなた", initial: "あ", color: AnchorTheme.tileIndigo, progress: 0.5)
+    static let haruka = CrewMember(name: "ハルカ", initial: "ハ", color: AnchorTheme.tileTerracotta, progress: 0.9)
+    static let kenta = CrewMember(name: "ケンタ", initial: "ケ", color: AnchorTheme.tileMustard, progress: 0.3)
+    static let mio = CrewMember(name: "ミオ", initial: "ミ", color: AnchorTheme.tileCharcoal, progress: 1.0)
+
+    static var crew: [CrewMember] { [you, haruka, kenta, mio] }
 
     static var nextVoyage: Voyage {
         Voyage(
@@ -105,16 +192,19 @@ enum SampleData {
             departureDate: Calendar.current.date(byAdding: .day, value: 2, to: .now) ?? .now,
             crew: crew,
             myItems: [
-                PackingItem(name: "モバイルバッテリー", status: .notStarted),
-                PackingItem(name: "レインウェア", status: .inProgress),
-                PackingItem(name: "救急セット", status: .notStarted),
-                PackingItem(name: "ヘッドライト", status: .done),
-                PackingItem(name: "着替え", status: .done),
-                PackingItem(name: "日焼け止め", status: .done),
+                PackingItem(name: "モバイルバッテリー", status: .notStarted, category: .electronics),
+                PackingItem(name: "ヘッドライト", status: .done, category: .electronics),
+                PackingItem(name: "レインウェア", status: .inProgress, category: .clothing),
+                PackingItem(name: "着替え", status: .done, category: .clothing),
+                PackingItem(name: "救急セット", status: .notStarted, category: .health),
+                PackingItem(name: "日焼け止め", status: .done, category: .health),
+                PackingItem(name: "行動食", status: .notStarted, category: .food),
+                PackingItem(name: "シュラフ", status: .inProgress, category: .gear),
             ],
             sharedItems: [
                 SharedItem(name: "テント", assignee: nil),
-                SharedItem(name: "クーラーボックス", assignee: crew[1]),
+                SharedItem(name: "クーラーボックス", assignee: haruka),
+                SharedItem(name: "ランタン", assignee: nil),
             ]
         )
     }
