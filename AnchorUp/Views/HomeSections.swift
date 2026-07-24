@@ -1,52 +1,77 @@
 import SwiftUI
 
-// MARK: - あなたの持ち場(未完了の持ち物の抜粋)
+// MARK: - 今日の持ち物(全セットから未チェックを抜粋)
 
-struct MyStationSection: View {
-    let items: [PackingItem]
-    var onOpenPackingList: () -> Void = {}
+struct TodayItemsSection: View {
+    @ObservedObject var store: AnchorStore
+    var onOpen: () -> Void = {}
 
-    /// 未完了・準備中のものだけを最大3件抜粋する
-    private var pendingItems: [PackingItem] {
-        Array(items.filter { $0.status != .done }.prefix(3))
+    private var preview: [(kit: PackingKit, item: KitItem)] {
+        store.remainingPreview(limit: 3)
     }
 
     var body: some View {
         VStack(spacing: 10) {
-            SectionHeader(title: "あなたの持ち場")
-
-            VStack(spacing: 1) {
-                ForEach(pendingItems) { item in
-                    Button(action: onOpenPackingList) {
-                        HStack(spacing: 12) {
-                            // 信号旗風のステータスドット
-                            Circle()
-                                .fill(item.status.flagColor)
-                                .frame(width: 9, height: 9)
-
-                            Text(item.name)
-                                .font(.system(size: 15, weight: .medium))
-                                .foregroundStyle(AnchorTheme.textPrimary)
-
-                            Spacer()
-
-                            Text(item.status.label)
-                                .font(.system(size: 12))
-                                .foregroundStyle(AnchorTheme.textSecondary)
-
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(AnchorTheme.textSecondary)
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 13)
-                        .background(AnchorTheme.surfaceRaised)
-                    }
-                    .buttonStyle(.plain)
+            HStack {
+                SectionHeader(title: "今日の持ち物")
+                Button(action: onOpen) {
+                    Text("すべて見る")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AnchorTheme.accent)
                 }
+                .buttonStyle(.plain)
             }
-            .background(AnchorTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+
+            if preview.isEmpty {
+                Button(action: onOpen) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .foregroundStyle(AnchorTheme.accent)
+                        Text(store.totalItemCount == 0 ? "持ち物セットを作ってみよう" : "今日の持ち物はすべて準備OK")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundStyle(AnchorTheme.textPrimary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(AnchorTheme.textSecondary)
+                    }
+                    .padding(16)
+                    .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            } else {
+                VStack(spacing: 1) {
+                    ForEach(preview, id: \.item.id) { entry in
+                        Button(action: onOpen) {
+                            HStack(spacing: 12) {
+                                Circle()
+                                    .fill(entry.kit.color.color)
+                                    .frame(width: 9, height: 9)
+
+                                Text(entry.item.name)
+                                    .font(.system(size: 15, weight: .medium))
+                                    .foregroundStyle(AnchorTheme.textPrimary)
+
+                                Spacer()
+
+                                Text(entry.kit.name)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 13)
+                            .background(AnchorTheme.surfaceRaised)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .background(AnchorTheme.surface)
+                .clipShape(RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+            }
         }
     }
 }

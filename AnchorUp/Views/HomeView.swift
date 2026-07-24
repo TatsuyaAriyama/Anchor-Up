@@ -23,7 +23,7 @@ struct HomeView: View {
                 case .home:
                     homeContent
                 case .packing:
-                    PackingListView(store: store)
+                    KitsView(store: store)
                 default:
                     placeholderContent
                 }
@@ -104,7 +104,7 @@ struct HomeView: View {
                     }
                 )
 
-                MyStationSection(items: store.voyage.myItems) {
+                TodayItemsSection(store: store) {
                     withAnimation { selectedTab = .packing }
                 }
 
