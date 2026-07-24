@@ -46,8 +46,12 @@ struct TodayItemsCompactCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 TileTitle(symbol: "checklist", title: "持ち物リスト")
                 Spacer()
-                if store.totalItemCount == 0 {
+                if store.kits.isEmpty {
                     Text("セットを\n作ってみよう")
+                        .font(.anchorBody(14))
+                        .foregroundStyle(AnchorTheme.textPrimary)
+                } else if store.totalItemCount == 0 {
+                    Text("持ち物を\n追加しよう")
                         .font(.anchorBody(14))
                         .foregroundStyle(AnchorTheme.textPrimary)
                 } else if remaining == 0 {

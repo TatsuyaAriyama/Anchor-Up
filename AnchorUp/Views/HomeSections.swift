@@ -95,6 +95,17 @@ struct TodayItemsSection: View {
         store.remainingPreview(limit: 3)
     }
 
+    /// 空表示の内容(セット無し / セットはあるが空 / 全部準備OK で出し分ける)
+    private var emptyState: (icon: String, message: String) {
+        if store.kits.isEmpty {
+            return ("bag.badge.plus", "持ち物セットを作ってみよう")
+        }
+        if store.totalItemCount == 0 {
+            return ("plus.circle", "持ち物を追加しよう")
+        }
+        return ("checkmark.seal.fill", "持ち物はすべて準備OK")
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             HStack {
@@ -110,9 +121,9 @@ struct TodayItemsSection: View {
             if preview.isEmpty {
                 Button(action: onOpen) {
                     HStack(spacing: 10) {
-                        Image(systemName: "checkmark.seal.fill")
+                        Image(systemName: emptyState.icon)
                             .foregroundStyle(AnchorTheme.accent)
-                        Text(store.totalItemCount == 0 ? "持ち物セットを作ってみよう" : "持ち物はすべて準備OK")
+                        Text(emptyState.message)
                             .font(.anchorBody(15))
                             .foregroundStyle(AnchorTheme.textPrimary)
                         Spacer()
