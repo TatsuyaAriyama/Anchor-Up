@@ -299,7 +299,7 @@ struct SectionDropDelegate: DropDelegate {
         guard let dragging, dragging != target else { return }
         MainActor.assumeIsolated {
             withAnimation(.easeInOut(duration: 0.22)) {
-                store.moveSection(dragging, before: target)
+                store.moveSection(dragging, over: target)
             }
         }
     }
