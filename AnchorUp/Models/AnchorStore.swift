@@ -112,6 +112,17 @@ final class AnchorStore: ObservableObject {
         homeSections[i].size = size
     }
 
+    /// 長押しドラッグ用: kind を target の直前へ移動する
+    func moveSection(_ kind: HomeSectionKind, before target: HomeSectionKind) {
+        guard kind != target,
+              let from = homeSections.firstIndex(where: { $0.kind == kind }) else { return }
+        var sections = homeSections
+        let moved = sections.remove(at: from)
+        guard let insertAt = sections.firstIndex(where: { $0.kind == target }) else { return }
+        sections.insert(moved, at: insertAt)
+        homeSections = sections
+    }
+
     func resetHomeLayout() {
         homeSections = HomeSectionConfig.defaultLayout
     }

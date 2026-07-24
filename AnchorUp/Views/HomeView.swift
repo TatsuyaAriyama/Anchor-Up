@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct HomeView: View {
     @StateObject private var store = AnchorStore()
@@ -7,6 +8,8 @@ struct HomeView: View {
     @State private var showingSettings = false
     @State private var showingCustomize = false
     @State private var planEditTarget: PlanEditTarget?
+    /// 長押しドラッグ中のセクション
+    @State private var draggingSection: HomeSectionKind?
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -160,21 +163,21 @@ struct HomeView: View {
                 dateHeader
                     .padding(.bottom, 6)
 
-                // レイアウト設定に従ったベントーグリッド
+                // レイアウト設定に従ったベントーグリッド(長押しドラッグで並び替え可)
                 ForEach(bentoRows, id: \.self) { row in
                     if row.count == 2 {
                         HStack(alignment: .top, spacing: 14) {
-                            compactView(row[0].kind)
-                            compactView(row[1].kind)
+                            draggableTile(row[0].kind) { compactView(row[0].kind) }
+                            draggableTile(row[1].kind) { compactView(row[1].kind) }
                         }
                     } else if let config = row.first {
                         if config.size == .half {
                             HStack(alignment: .top, spacing: 14) {
-                                compactView(config.kind)
+                                draggableTile(config.kind) { compactView(config.kind) }
                                 Color.clear.frame(maxWidth: .infinity)
                             }
                         } else {
-                            sectionView(config.kind)
+                            draggableTile(config.kind) { sectionView(config.kind) }
                         }
                     }
                 }
@@ -184,8 +187,28 @@ struct HomeView: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
+            .animation(.easeInOut(duration: 0.25), value: store.homeSections)
         }
         .scrollIndicators(.hidden)
+        // タイルの外側でドロップした場合のリセット
+        .onDrop(of: [.text], delegate: LayoutResetDropDelegate(dragging: $draggingSection))
+    }
+
+    /// タイルに長押しドラッグ(並び替え)を付与する
+    @ViewBuilder
+    private func draggableTile<V: View>(_ kind: HomeSectionKind, @ViewBuilder _ content: () -> V) -> some View {
+        content()
+            .opacity(draggingSection == kind ? 0.3 : 1)
+            .scaleEffect(draggingSection == kind ? 0.97 : 1)
+            .onDrag {
+                draggingSection = kind
+                Haptics.soft()
+                return NSItemProvider(object: kind.rawValue as NSString)
+            }
+            .onDrop(
+                of: [.text],
+                delegate: SectionDropDelegate(target: kind, store: store, dragging: $draggingSection)
+            )
     }
 
     /// 半分サイズのコンパクトタイル
@@ -261,6 +284,46 @@ struct HomeView: View {
                 .foregroundStyle(AnchorTheme.textSecondary)
             Spacer()
         }
+    }
+}
+
+// MARK: - 並び替えのドロップ処理
+
+/// タイルにドラッグが重なったら、その位置へ即座に差し替える
+struct SectionDropDelegate: DropDelegate {
+    let target: HomeSectionKind
+    let store: AnchorStore
+    @Binding var dragging: HomeSectionKind?
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != target else { return }
+        MainActor.assumeIsolated {
+            withAnimation(.easeInOut(duration: 0.22)) {
+                store.moveSection(dragging, before: target)
+            }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        MainActor.assumeIsolated {
+            dragging = nil
+            Haptics.success()
+        }
+        return true
+    }
+}
+
+/// タイルの外側でドロップした場合に、ドラッグ状態を解除する
+struct LayoutResetDropDelegate: DropDelegate {
+    @Binding var dragging: HomeSectionKind?
+
+    func performDrop(info: DropInfo) -> Bool {
+        MainActor.assumeIsolated { dragging = nil }
+        return true
     }
 }
 

@@ -66,7 +66,7 @@ struct HomeCustomizeView: View {
                         Text("表示するセクション")
                             .foregroundStyle(AnchorTheme.textSecondary)
                     } footer: {
-                        Text("左上の「編集」でドラッグ並び替え、スイッチで表示/非表示。「全幅/半分」でカードの大きさを選べます。半分どうしは横に2つ並び、自分だけの盤面を組めます。")
+                        Text("スイッチで表示/非表示、「全幅/半分」でカードの大きさを選べます。並び替えは、ここで左上の「編集」を使うか、ホーム画面でタイルを長押ししてドラッグできます。")
                             .foregroundStyle(AnchorTheme.textSecondary)
                     }
 
