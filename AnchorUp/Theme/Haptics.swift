@@ -13,4 +13,9 @@ enum Haptics {
     static func soft() {
         UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.7)
     }
+
+    /// 舵輪のデテント(カチッという節度感)
+    static func detent() {
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
 }

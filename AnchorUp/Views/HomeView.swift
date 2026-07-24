@@ -5,6 +5,8 @@ struct HomeView: View {
     @StateObject private var store = AnchorStore()
     @StateObject private var notifications = NotificationManager()
     @State private var selectedTab: AppTab = .home
+    /// 舵の回転方向(+1: 順 / -1: 逆)。画面スライドの向きに使う
+    @State private var navDirection: Double = 1
     @State private var planEditTarget: PlanEditTarget?
     /// 長押しドラッグ中のセクション
     @State private var draggingSection: HomeSectionKind?
@@ -14,24 +16,20 @@ struct HomeView: View {
             WallpaperView(wallpaper: store.wallpaper)
                 .ignoresSafeArea()
 
-            // タブごとの画面(舵輪の回転で切り替わる)
+            // タブごとの画面(舵輪の回転で切り替わる)。回した方向へスライド
             ZStack {
                 switch selectedTab {
                 case .home:
-                    homeContent
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    homeContent.transition(tabTransition)
                 case .packing:
-                    KitsView(store: store)
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    KitsView(store: store).transition(tabTransition)
                 case .crew:
-                    placeholderContent
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    placeholderContent.transition(tabTransition)
                 case .myPage:
-                    MyPageView(store: store, notifications: notifications)
-                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    MyPageView(store: store, notifications: notifications).transition(tabTransition)
                 }
             }
-            .animation(.easeInOut(duration: 0.25), value: selectedTab)
+            .animation(.spring(response: 0.38, dampingFraction: 0.86), value: selectedTab)
 
             // 舵輪の背後の暗がり(海面下)。触れないよう素通し
             LinearGradient(
@@ -43,7 +41,7 @@ struct HomeView: View {
             .ignoresSafeArea(edges: .bottom)
 
             // 半分海に沈んだ舵輪。回して画面を切り替える
-            HelmControl(selection: $selectedTab)
+            HelmControl(selection: $selectedTab, direction: $navDirection)
                 .offset(y: 170)
         }
         .overlay(alignment: .bottomTrailing) {
@@ -77,6 +75,16 @@ struct HomeView: View {
             notifications.refreshAuthStatus()
             notifications.rescheduleIfEnabled(itemCount: store.totalItemCount)
         }
+    }
+
+    /// 舵の回転方向に応じたスライド遷移(順=右から、逆=左から)
+    private var tabTransition: AnyTransition {
+        .asymmetric(
+            insertion: .move(edge: navDirection >= 0 ? .trailing : .leading)
+                .combined(with: .opacity),
+            removal: .move(edge: navDirection >= 0 ? .leading : .trailing)
+                .combined(with: .opacity)
+        )
     }
 
     // MARK: - 日付ヘッダー
