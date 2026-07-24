@@ -164,83 +164,104 @@ struct TodayItemsSection: View {
                         }
                         .buttonStyle(.plain)
                     }
+
+                    // 3件を超える未チェックがある場合の「他N件」
+                    if moreCount > 0 {
+                        Button(action: onOpen) {
+                            HStack(spacing: 6) {
+                                Text("他 \(moreCount) 件")
+                                    .font(.anchorBody(13))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                                Image(systemName: "chevron.right")
+                                    .font(.anchorHeading(10))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                                Spacer()
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 11)
+                            .background(AnchorTheme.surfaceRaised)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
                 .background(AnchorTheme.surface)
                 .clipShape(RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
             }
         }
     }
+
+    /// プレビューに載らなかった未チェックの件数
+    private var moreCount: Int {
+        max(0, (store.totalItemCount - store.checkedItemCount) - preview.count)
+    }
 }
 
-// MARK: - 乗組員
+// MARK: - 乗組員(概要。実データの名簿を表示)
 
-struct CrewSection: View {
-    let crew: [CrewMember]
-    let sharedItems: [SharedItem]
-
-    /// 担当未定の船倉シェアアイテム
-    private var unassigned: [SharedItem] {
-        sharedItems.filter { $0.assignee == nil }
-    }
+struct CrewOverviewSection: View {
+    @ObservedObject var store: AnchorStore
+    var onOpen: () -> Void = {}
 
     var body: some View {
         VStack(spacing: 10) {
-            SectionHeader(title: "乗組員")
-
-            VStack(spacing: 14) {
-                HStack(spacing: 18) {
-                    ForEach(crew) { member in
-                        VStack(spacing: 6) {
-                            ZStack {
-                                ProgressRing(progress: member.progress, lineWidth: 3)
-                                    .frame(width: 46, height: 46)
-                                CrewAvatar(member: member, size: 36)
-                            }
-                            Text(member.name)
-                                .font(.anchorBody(11))
-                                .foregroundStyle(AnchorTheme.textSecondary)
-                                .lineLimit(1)
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
+            HStack {
+                SectionHeader(title: "乗組員")
+                Button(action: onOpen) {
+                    Text("名簿へ")
+                        .font(.anchorHeading(13))
+                        .foregroundStyle(AnchorTheme.accent)
                 }
-
-                if !unassigned.isEmpty {
-                    // 船倉シェアの担当が未定の場合のさりげない通知
-                    HStack(spacing: 8) {
-                        Image(systemName: "shippingbox")
-                            .font(.anchorBody(12))
-                            .foregroundStyle(AnchorTheme.tileMustard)
-                        Text("\(unassigned.map(\.name).joined(separator: "・"))の担当がまだ決まっていません")
-                            .font(.anchorBody(12))
-                            .foregroundStyle(AnchorTheme.textSecondary)
-                        Spacer()
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 9)
-                    .background(
-                        AnchorTheme.tileMustard.opacity(0.12),
-                        in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    )
-                }
+                .buttonStyle(.plain)
             }
-            .padding(16)
-            .background(AnchorTheme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+
+            Button(action: onOpen) {
+                Group {
+                    if store.crew.isEmpty {
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.badge.plus")
+                                .foregroundStyle(AnchorTheme.hullTan)
+                            Text("一緒に出かける仲間を登録しよう")
+                                .font(.anchorBody(14))
+                                .foregroundStyle(AnchorTheme.textPrimary)
+                            Spacer()
+                        }
+                    } else {
+                        HStack(spacing: 16) {
+                            HStack(spacing: -10) {
+                                ForEach(store.crew.prefix(6)) { mate in
+                                    CrewmateAvatar(mate: mate, size: 40)
+                                        .overlay(Circle().stroke(AnchorTheme.surface, lineWidth: 2))
+                                }
+                            }
+                            Text("\(store.crew.count)人")
+                                .font(.anchorHeading(15))
+                                .foregroundStyle(AnchorTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.anchorHeading(12))
+                                .foregroundStyle(AnchorTheme.textSecondary)
+                        }
+                    }
+                }
+                .padding(16)
+                .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+            }
+            .buttonStyle(.plain)
         }
     }
 }
 
-// MARK: - 寄港の記録(過去の予定)
+// MARK: - 寄港の記録(終わった航海)
 
+/// 過去/出航済みの予定を表示する。実データが無ければ空状態。
 struct PortLogSection: View {
-    let pastVoyages: [PastVoyage]
+    @ObservedObject var store: AnchorStore
 
     var body: some View {
         VStack(spacing: 10) {
             SectionHeader(title: "寄港の記録")
 
-            if pastVoyages.isEmpty {
+            if store.pastPlans.isEmpty {
                 HStack {
                     Spacer()
                     VStack(spacing: 8) {
@@ -259,11 +280,11 @@ struct PortLogSection: View {
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 12) {
-                        ForEach(pastVoyages) { voyage in
+                        ForEach(Array(store.pastPlans.enumerated()), id: \.element.id) { idx, voyage in
                             VStack(alignment: .leading, spacing: 0) {
                                 ZStack {
-                                    voyage.tint.opacity(0.35)
-                                    Image(systemName: voyage.symbolName)
+                                    PortLog.tint(idx).opacity(0.35)
+                                    Image(systemName: voyage.completedAt != nil ? "checkmark.seal" : "sailboat")
                                         .font(.anchorBody(24))
                                         .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
                                 }
@@ -274,7 +295,7 @@ struct PortLogSection: View {
                                         .font(.anchorHeading(13))
                                         .foregroundStyle(AnchorTheme.textPrimary)
                                         .lineLimit(1)
-                                    Text(voyage.dateLabel)
+                                    Text(PortLog.dateLabel(voyage))
                                         .font(.anchorBody(11))
                                         .foregroundStyle(AnchorTheme.textSecondary)
                                 }
@@ -288,5 +309,17 @@ struct PortLogSection: View {
                 }
             }
         }
+    }
+}
+
+/// 寄港の記録の表示ヘルパ
+enum PortLog {
+    static func tint(_ index: Int) -> Color {
+        let palette = [AnchorTheme.tileTerracotta, AnchorTheme.seaShallow, AnchorTheme.tileIndigo, AnchorTheme.tileMustard]
+        return palette[index % palette.count]
+    }
+    static func dateLabel(_ voyage: Voyage) -> String {
+        let d = voyage.completedAt ?? voyage.date
+        return d.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).month().day())
     }
 }

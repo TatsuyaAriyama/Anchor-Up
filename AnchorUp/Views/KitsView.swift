@@ -53,7 +53,7 @@ struct KitsView: View {
                 .padding(.bottom, 170) // 舵輪ぶんの余白
             }
             .scrollIndicators(.hidden)
-            .background(AnchorTheme.background)
+            // 背景は敷かない(ホームの壁紙を透かす)
             .navigationDestination(for: UUID.self) { kitID in
                 KitDetailView(store: store, kitID: kitID)
             }

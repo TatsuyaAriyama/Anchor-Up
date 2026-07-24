@@ -17,10 +17,14 @@ final class AnchorStore: ObservableObject {
     /// ホームの背景(壁紙)
     @Published var wallpaper: Wallpaper { didSet { saveWallpaper() } }
 
+    /// 乗組員名簿(ローカル)
+    @Published var crew: [Crewmate] { didSet { saveCrew() } }
+
     private let kitsKey = "anchorup.kits.v1"
     private let layoutKey = "anchorup.homeLayout.v1"
     private let plansKey = "anchorup.plans.v1"
     private let wallpaperKey = "anchorup.wallpaper.v1"
+    private let crewKey = "anchorup.crew.v1"
 
     init() {
         self.kits = Self.load(key: "anchorup.kits.v1") ?? DefaultKits.seed()
@@ -29,23 +33,54 @@ final class AnchorStore: ObservableObject {
         self.plans = Self.loadPlans(key: "anchorup.plans.v1") ?? []
         let savedWallpaper = UserDefaults.standard.string(forKey: "anchorup.wallpaper.v1")
         self.wallpaper = savedWallpaper.flatMap(Wallpaper.init(rawValue:)) ?? .deep
+        self.crew = Self.loadCrew(key: "anchorup.crew.v1") ?? []
+    }
+
+    // MARK: - 乗組員
+
+    @discardableResult
+    func addCrew(name: String) -> Crewmate? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let mate = Crewmate(name: trimmed, colorIndex: crew.count % CrewPalette.all.count)
+        crew.append(mate)
+        return mate
+    }
+
+    func removeCrew(_ mate: Crewmate) {
+        crew.removeAll { $0.id == mate.id }
+    }
+
+    func updateCrew(_ mate: Crewmate, name: String, note: String) {
+        guard let i = crew.firstIndex(where: { $0.id == mate.id }) else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty { crew[i].name = trimmed }
+        crew[i].note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    func moveCrew(fromOffsets: IndexSet, toOffset: Int) {
+        crew.move(fromOffsets: fromOffsets, toOffset: toOffset)
     }
 
     // MARK: - 予定(航海)
 
-    /// 直近の未来の予定(なければ nil)
+    /// 直近の未来の予定(出航済み・過去は除く)
     var nextPlan: Voyage? {
-        let today = Calendar.current.startOfDay(for: Date())
-        return plans
-            .filter { Calendar.current.startOfDay(for: $0.date) >= today }
+        plans
+            .filter { !$0.isFinished }
             .sorted { $0.date < $1.date }
             .first
     }
 
-    /// 未来の予定の総数
+    /// 未来(未完了)の予定の総数
     var upcomingPlanCount: Int {
-        let today = Calendar.current.startOfDay(for: Date())
-        return plans.filter { Calendar.current.startOfDay(for: $0.date) >= today }.count
+        plans.filter { !$0.isFinished }.count
+    }
+
+    /// 終わった航海(出航済み or 日付が過ぎた)を新しい順に
+    var pastPlans: [Voyage] {
+        plans.filter { $0.isFinished }
+            .sorted { ($0.completedAt ?? $0.date) > ($1.completedAt ?? $1.date) }
     }
 
     /// 予定に紐付いた持ち物セット(削除済みのIDは除外)
@@ -100,6 +135,12 @@ final class AnchorStore: ObservableObject {
 
     func deletePlan(_ plan: Voyage) {
         plans.removeAll { $0.id == plan.id }
+    }
+
+    /// 「Anchor Up」で出航済みにする(記録へ送る)
+    func completePlan(_ plan: Voyage) {
+        guard let i = plans.firstIndex(where: { $0.id == plan.id }) else { return }
+        plans[i].completedAt = Date()
     }
 
     // MARK: - ホームのレイアウト
@@ -282,5 +323,16 @@ final class AnchorStore: ObservableObject {
 
     private func saveWallpaper() {
         UserDefaults.standard.set(wallpaper.rawValue, forKey: wallpaperKey)
+    }
+
+    private func saveCrew() {
+        guard let data = try? JSONEncoder().encode(crew) else { return }
+        UserDefaults.standard.set(data, forKey: crewKey)
+    }
+
+    private static func loadCrew(key: String) -> [Crewmate]? {
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let crew = try? JSONDecoder().decode([Crewmate].self, from: data) else { return nil }
+        return crew
     }
 }

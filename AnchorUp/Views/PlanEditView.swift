@@ -114,6 +114,11 @@ struct PlanEditView: View {
             }
         } header: {
             Text("日程").foregroundStyle(AnchorTheme.textSecondary)
+        } footer: {
+            // 選んだ日付の残り(過去なら警告色)
+            let v = Voyage(title: "", date: date)
+            Text(v.isPast ? "この日付は過ぎています" : v.countdownText)
+                .foregroundStyle(v.isPast ? AnchorTheme.tileTerracotta : AnchorTheme.textSecondary)
         }
     }
 

@@ -44,6 +44,8 @@ struct Voyage: Identifiable, Codable, Equatable {
     var hasTime: Bool
     /// 持っていく持ち物セットのID
     var linkedKitIDs: [UUID]
+    /// 「Anchor Up」で出航済みにした日時。nil なら未出航
+    var completedAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -51,7 +53,8 @@ struct Voyage: Identifiable, Codable, Equatable {
         destination: String = "",
         date: Date,
         hasTime: Bool = false,
-        linkedKitIDs: [UUID] = []
+        linkedKitIDs: [UUID] = [],
+        completedAt: Date? = nil
     ) {
         self.id = id
         self.title = title
@@ -59,6 +62,7 @@ struct Voyage: Identifiable, Codable, Equatable {
         self.date = date
         self.hasTime = hasTime
         self.linkedKitIDs = linkedKitIDs
+        self.completedAt = completedAt
     }
 
     /// 出航まで残り日数(過去なら負、当日は 0)
@@ -70,6 +74,9 @@ struct Voyage: Identifiable, Codable, Equatable {
     }
 
     var isPast: Bool { daysUntilDeparture < 0 }
+
+    /// 出航済み or 日付が過ぎた予定は「終わった航海」
+    var isFinished: Bool { completedAt != nil || isPast }
 
     /// 「出航まであと2日」など
     var countdownText: String {
@@ -102,6 +109,30 @@ struct PastVoyage: Identifiable {
     let dateLabel: String
     let symbolName: String
     let tint: Color
+}
+
+// MARK: - 乗組員名簿(乗組員タブ・永続化)
+
+/// ローカルに保存する乗組員。配色は Codable にするため番号で持つ。
+struct Crewmate: Identifiable, Codable, Equatable {
+    var id: UUID = UUID()
+    var name: String
+    var colorIndex: Int
+    /// メモ(担当・役割など任意)
+    var note: String = ""
+
+    var initial: String { String(name.prefix(1)) }
+    var color: Color { CrewPalette.color(at: colorIndex) }
+}
+
+enum CrewPalette {
+    static let all: [Color] = [
+        AnchorTheme.tileIndigo, AnchorTheme.tileTerracotta, AnchorTheme.tileMustard,
+        AnchorTheme.tileCharcoal, AnchorTheme.hullTan, AnchorTheme.seaShallow,
+    ]
+    static func color(at index: Int) -> Color {
+        all[((index % all.count) + all.count) % all.count]
+    }
 }
 
 // MARK: - サンプルデータ(デモ用セクション向け)

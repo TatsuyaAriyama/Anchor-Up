@@ -8,6 +8,12 @@ struct HomeView: View {
     /// 舵の回転方向(+1: 順 / -1: 逆)。画面スライドの向きに使う
     @State private var navDirection: Double = 1
     @State private var planEditTarget: PlanEditTarget?
+    /// 舵輪の使い方ヒント(初回のみ)
+    @AppStorage("anchorup.helmHintShown") private var helmHintShown = false
+    @State private var showHelmHint = false
+    /// Anchor Up の出航演出
+    @State private var celebrating = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// 長押しドラッグ中のセクション
     @State private var draggingSection: HomeSectionKind?
 
@@ -24,12 +30,12 @@ struct HomeView: View {
                 case .packing:
                     KitsView(store: store).transition(tabTransition)
                 case .crew:
-                    placeholderContent.transition(tabTransition)
+                    CrewView(store: store).transition(tabTransition)
                 case .myPage:
                     MyPageView(store: store, notifications: notifications).transition(tabTransition)
                 }
             }
-            .animation(.spring(response: 0.38, dampingFraction: 0.86), value: selectedTab)
+            .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.38, dampingFraction: 0.86), value: selectedTab)
 
             // 舵輪の背後の暗がり(海面下)。触れないよう素通し
             LinearGradient(
@@ -41,8 +47,12 @@ struct HomeView: View {
             .ignoresSafeArea(edges: .bottom)
 
             // 半分海に沈んだ舵輪。回して画面を切り替える
-            HelmControl(selection: $selectedTab, direction: $navDirection)
+            HelmControl(selection: $selectedTab, direction: $navDirection,
+                        reduceMotion: reduceMotion, showHint: showHelmHint)
                 .offset(y: 170)
+        }
+        .overlay {
+            if celebrating { celebrationOverlay }
         }
         .overlay(alignment: .bottomTrailing) {
             // ホームタブのみ: 新規予定作成のFAB(持ち物タブは自前のFABを持つ)
@@ -74,12 +84,22 @@ struct HomeView: View {
         .onAppear {
             notifications.refreshAuthStatus()
             notifications.rescheduleIfEnabled(itemCount: store.totalItemCount)
+            // 初回のみ、舵輪の使い方ヒントを少し遅れて出す
+            if !helmHintShown {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) { showHelmHint = true }
+                }
+            }
+        }
+        .onChange(of: selectedTab) { _, _ in
+            dismissHelmHint()
         }
     }
 
-    /// 舵の回転方向に応じたスライド遷移(順=右から、逆=左から)
+    /// 舵の回転方向に応じたスライド遷移(順=右から、逆=左から)。視差減時はフェード
     private var tabTransition: AnyTransition {
-        .asymmetric(
+        if reduceMotion { return .opacity }
+        return .asymmetric(
             insertion: .move(edge: navDirection >= 0 ? .trailing : .leading)
                 .combined(with: .opacity),
             removal: .move(edge: navDirection >= 0 ? .leading : .trailing)
@@ -87,11 +107,47 @@ struct HomeView: View {
         )
     }
 
+    private func dismissHelmHint() {
+        guard showHelmHint else { return }
+        helmHintShown = true
+        withAnimation(.easeOut(duration: 0.3)) { showHelmHint = false }
+    }
+
+    // MARK: - Anchor Up の出航演出
+
+    private var celebrationOverlay: some View {
+        ZStack {
+            AnchorTheme.seaDeep.opacity(0.5).ignoresSafeArea()
+            VStack(spacing: 16) {
+                AnchorLogo(size: 64, color: AnchorTheme.moonGlow)
+                    .rotationEffect(.degrees(celebrating ? 0 : -20))
+                Text("錨を上げた")
+                    .font(.anchorHeading(24))
+                    .foregroundStyle(AnchorTheme.moonGlow)
+                Text("よい航海を。")
+                    .font(.anchorBody(15))
+                    .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
+            }
+        }
+        .transition(.opacity)
+        .allowsHitTesting(false)
+    }
+
+    /// 「Anchor Up」で出航 → 完了して記録へ
+    private func anchorUp(_ plan: Voyage) {
+        Haptics.success()
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { celebrating = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+            store.completePlan(plan)
+            withAnimation(.easeOut(duration: 0.4)) { celebrating = false }
+        }
+    }
+
     // MARK: - 日付ヘッダー
 
     private var dateHeader: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).weekday(.wide)))
+            Text("\(greeting) · \(Date.now.formatted(Date.FormatStyle(locale: .init(identifier: "ja_JP")).weekday(.wide)))")
                 .font(.anchorHeading(13))
                 .foregroundStyle(AnchorTheme.accent)
 
@@ -100,6 +156,16 @@ struct HomeView: View {
                 .foregroundStyle(AnchorTheme.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 時間帯に応じた挨拶
+    private var greeting: String {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<11: "おはよう"
+        case 11..<17: "こんにちは"
+        case 17..<22: "こんばんは"
+        default: "航海日和"
+        }
     }
 
     // MARK: - ホームタブの中身
@@ -202,9 +268,11 @@ struct HomeView: View {
                 onCreate: { planEditTarget = .create }
             )
         case .crew:
-            CrewCompactCard()
+            CrewCompactCard(store: store) {
+                withAnimation { selectedTab = .crew }
+            }
         case .portLog:
-            PortLogCompactCard()
+            PortLogCompactCard(store: store)
         }
     }
 
@@ -230,31 +298,18 @@ struct HomeView: View {
                     if let plan { planEditTarget = .edit(plan) }
                 },
                 onAnchorUp: {
-                    Haptics.success()
+                    if let plan { anchorUp(plan) }
                 },
                 onCreate: {
                     planEditTarget = .create
                 }
             )
         case .crew:
-            CrewSection(crew: SampleData.crew, sharedItems: SampleData.sharedItems)
+            CrewOverviewSection(store: store) {
+                withAnimation { selectedTab = .crew }
+            }
         case .portLog:
-            PortLogSection(pastVoyages: SampleData.pastVoyages)
-        }
-    }
-
-    // MARK: - 未実装タブ
-
-    private var placeholderContent: some View {
-        VStack(spacing: 12) {
-            Spacer()
-            Image(systemName: "helm")
-                .font(.anchorBody(34))
-                .foregroundStyle(AnchorTheme.textSecondary)
-            Text("この区画は整備中です")
-                .font(.anchorBody(14))
-                .foregroundStyle(AnchorTheme.textSecondary)
-            Spacer()
+            PortLogSection(store: store)
         }
     }
 }

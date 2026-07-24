@@ -183,6 +183,7 @@ struct PinnedKitsCompactCard: View {
 // MARK: - 乗組員(コンパクト)
 
 struct CrewCompactCard: View {
+    @ObservedObject var store: AnchorStore
     var onOpen: () -> Void = {}
 
     var body: some View {
@@ -190,29 +191,51 @@ struct CrewCompactCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 TileTitle(symbol: "flag.2.crossed", title: "乗組員")
                 Spacer(minLength: 0)
-                HStack(spacing: -8) {
-                    ForEach(SampleData.crew) { member in
-                        CrewAvatar(member: member, size: 32)
-                            .overlay(Circle().stroke(AnchorTheme.surface, lineWidth: 2))
+                if store.crew.isEmpty {
+                    Text("仲間を\n登録しよう")
+                        .font(.anchorBody(13))
+                        .foregroundStyle(AnchorTheme.textSecondary)
+                } else {
+                    HStack(spacing: -8) {
+                        ForEach(store.crew.prefix(5)) { mate in
+                            CrewmateAvatar(mate: mate, size: 32)
+                                .overlay(Circle().stroke(AnchorTheme.surface, lineWidth: 2))
+                        }
                     }
+                    Text("\(store.crew.count)人の乗組員")
+                        .font(.anchorBody(11))
+                        .foregroundStyle(AnchorTheme.textSecondary)
                 }
-                Text("\(SampleData.crew.count)人が乗船中")
-                    .font(.anchorBody(11))
-                    .foregroundStyle(AnchorTheme.textSecondary)
             }
             .padding(14)
         }
     }
 }
 
+/// 乗組員名簿のアバター
+struct CrewmateAvatar: View {
+    let mate: Crewmate
+    var size: CGFloat = 34
+
+    var body: some View {
+        ZStack {
+            Circle().fill(mate.color)
+            Text(mate.initial)
+                .font(.anchorHeading(size * 0.42))
+                .foregroundStyle(AnchorTheme.textPrimary)
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // MARK: - 寄港の記録(コンパクト)
 
 struct PortLogCompactCard: View {
+    @ObservedObject var store: AnchorStore
     var onOpen: () -> Void = {}
 
-    private var latest: PastVoyage? { SampleData.pastVoyages.first }
-
     var body: some View {
+        let latest = store.pastPlans.first
         CompactTile(action: onOpen) {
             VStack(alignment: .leading, spacing: 8) {
                 TileTitle(symbol: "clock.arrow.circlepath", title: "寄港の記録")
@@ -221,8 +244,8 @@ struct PortLogCompactCard: View {
                     HStack(spacing: 8) {
                         ZStack {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .fill(latest.tint.opacity(0.3))
-                            Image(systemName: latest.symbolName)
+                                .fill(AnchorTheme.seaShallow.opacity(0.3))
+                            Image(systemName: latest.completedAt != nil ? "checkmark.seal" : "sailboat")
                                 .font(.anchorBody(13))
                                 .foregroundStyle(AnchorTheme.moonGlow.opacity(0.85))
                         }
@@ -232,7 +255,7 @@ struct PortLogCompactCard: View {
                                 .font(.anchorBody(13))
                                 .foregroundStyle(AnchorTheme.textPrimary)
                                 .lineLimit(1)
-                            Text(latest.dateLabel)
+                            Text(PortLog.dateLabel(latest))
                                 .font(.anchorBody(11))
                                 .foregroundStyle(AnchorTheme.textSecondary)
                         }

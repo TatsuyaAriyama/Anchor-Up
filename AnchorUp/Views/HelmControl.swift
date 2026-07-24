@@ -7,6 +7,10 @@ struct HelmControl: View {
     @Binding var selection: AppTab
     /// 画面遷移の方向(+1: 順方向 / -1: 逆方向)。トランジションに使う
     @Binding var direction: Double
+    /// 視差を減らす設定。慣性スピンを抑える
+    var reduceMotion: Bool = false
+    /// 初回の使い方ヒントを舵輪ラベルの上に出す
+    var showHint: Bool = false
 
     /// 舵輪の累積回転角(度)
     @State private var angle: Double = 0
@@ -21,6 +25,22 @@ struct HelmControl: View {
 
     var body: some View {
         VStack(spacing: 10) {
+            // 初回ヒント(舵輪ラベルの真上)
+            if showHint {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.trianglehead.clockwise")
+                        .font(.anchorBody(12))
+                    Text("舵を回して切り替え")
+                        .font(.anchorHeading(12))
+                }
+                .foregroundStyle(AnchorTheme.seaDeep)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(AnchorTheme.moonGlow, in: Capsule())
+                .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+                .transition(.scale(scale: 0.8).combined(with: .opacity))
+            }
+
             // 現在の区画名
             HStack(spacing: 7) {
                 Image(systemName: selection.symbolName)
@@ -45,6 +65,8 @@ struct HelmControl: View {
             .frame(width: wheelSize, height: wheelSize)
             .contentShape(Circle())
             .gesture(rotationDrag)
+            // タップでも次の画面へ(回転できない人・素早い切替の両対応)
+            .simultaneousGesture(TapGesture().onEnded { advance(by: 1) })
             .shadow(color: .black.opacity(0.45), radius: 18, y: -4)
             // ラバーライン(方位指標)。回転せず常に真上を指す
             .overlay(alignment: .top) {
@@ -54,8 +76,22 @@ struct HelmControl: View {
                     .offset(y: -13)
                     .shadow(color: .black.opacity(0.4), radius: 2, y: 1)
             }
+            // VoiceOver: 上下スワイプで画面を送れる調整操作に
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("画面を切り替える舵輪")
+            .accessibilityValue(selection.rawValue)
+            .accessibilityHint("上下にスワイプ、またはタップで画面を切り替えます")
+            .accessibilityAdjustableAction { dir in
+                advance(by: dir == .increment ? 1 : -1)
+            }
         }
         .animation(.spring(response: 0.32, dampingFraction: 0.8), value: selection)
+    }
+
+    /// タップ/アクセシビリティ操作で1コマ送る
+    private func advance(by steps: Int) {
+        let target = (((angle / 90).rounded()) + Double(steps)) * 90
+        settle(to: target)
     }
 
     // MARK: - 回転ジェスチャ
@@ -85,8 +121,9 @@ struct HelmControl: View {
                 lastTouchAngle = nil
                 lastMoveTime = nil
 
-                // フリックの勢いを投影し(最大3コマ)、最寄りのデテントへ
-                let projectedSpin = max(-270, min(270, angularVelocity * 0.12))
+                // フリックの勢いを投影し(最大3コマ)、最寄りのデテントへ。
+                // 視差減の時は勢いを使わず最寄りへ収める
+                let projectedSpin = reduceMotion ? 0 : max(-270, min(270, angularVelocity * 0.12))
                 let target = ((angle + projectedSpin) / 90).rounded() * 90
                 settle(to: target)
                 angularVelocity = 0
