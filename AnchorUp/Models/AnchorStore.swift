@@ -14,15 +14,21 @@ final class AnchorStore: ObservableObject {
     /// 予定(航海)の一覧。変更のたびに保存する。
     @Published var plans: [Voyage] { didSet { savePlans() } }
 
+    /// ホームの背景(壁紙)
+    @Published var wallpaper: Wallpaper { didSet { saveWallpaper() } }
+
     private let kitsKey = "anchorup.kits.v1"
     private let layoutKey = "anchorup.homeLayout.v1"
     private let plansKey = "anchorup.plans.v1"
+    private let wallpaperKey = "anchorup.wallpaper.v1"
 
     init() {
         self.kits = Self.load(key: "anchorup.kits.v1") ?? DefaultKits.seed()
         let savedLayout = Self.loadLayout(key: "anchorup.homeLayout.v1")
         self.homeSections = HomeSectionConfig.reconciled(savedLayout ?? HomeSectionConfig.defaultLayout)
         self.plans = Self.loadPlans(key: "anchorup.plans.v1") ?? []
+        let savedWallpaper = UserDefaults.standard.string(forKey: "anchorup.wallpaper.v1")
+        self.wallpaper = savedWallpaper.flatMap(Wallpaper.init(rawValue:)) ?? .deep
     }
 
     // MARK: - 予定(航海)
@@ -272,5 +278,9 @@ final class AnchorStore: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: key),
               let plans = try? JSONDecoder().decode([Voyage].self, from: data) else { return nil }
         return plans
+    }
+
+    private func saveWallpaper() {
+        UserDefaults.standard.set(wallpaper.rawValue, forKey: wallpaperKey)
     }
 }

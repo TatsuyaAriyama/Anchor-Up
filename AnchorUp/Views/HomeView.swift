@@ -13,7 +13,8 @@ struct HomeView: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            AnchorTheme.background.ignoresSafeArea()
+            WallpaperView(wallpaper: store.wallpaper)
+                .ignoresSafeArea()
 
             VStack(spacing: 0) {
                 header

@@ -64,6 +64,23 @@ struct SettingsView: View {
                     }
 
                     Section {
+                        NavigationLink {
+                            WallpaperPickerView(store: store)
+                        } label: {
+                            HStack {
+                                Label("背景", systemImage: "photo.on.rectangle.angled")
+                                    .foregroundStyle(AnchorTheme.textPrimary)
+                                Spacer()
+                                Text(store.wallpaper.name)
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                            }
+                        }
+                        .listRowBackground(AnchorTheme.surface)
+                    } header: {
+                        Text("外観").foregroundStyle(AnchorTheme.textSecondary)
+                    }
+
+                    Section {
                         HStack {
                             Text("バージョン")
                                 .foregroundStyle(AnchorTheme.textPrimary)
