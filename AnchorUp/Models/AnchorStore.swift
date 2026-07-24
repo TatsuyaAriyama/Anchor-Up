@@ -26,6 +26,13 @@ final class AnchorStore: ObservableObject {
     private let wallpaperKey = "anchorup.wallpaper.v1"
     private let crewKey = "anchorup.crew.v1"
 
+    // MARK: - クラウド同期(Firestore)
+
+    private let cloud = CloudSyncEngine()
+    private var cloudUID: String?
+    /// リモートからの反映中はアップロードを止める(フィードバックループ防止)
+    private var isApplyingRemote = false
+
     init() {
         self.kits = Self.load(key: "anchorup.kits.v1") ?? DefaultKits.seed()
         let savedLayout = Self.loadLayout(key: "anchorup.homeLayout.v1")
@@ -352,11 +359,44 @@ final class AnchorStore: ObservableObject {
         kits.first { $0.id == id }
     }
 
+    // MARK: - クラウド同期(Firestore)
+
+    /// サインイン後に呼ぶ。リモートにデータがあれば取り込み、無ければローカルを初回アップロードする。
+    /// 以後はリアルタイムで双方向に同期する。
+    func connectCloud(uid: String) async {
+        cloudUID = uid
+        if let remote = await cloud.fetchOnce(uid: uid) {
+            applyRemote(remote)
+        } else {
+            scheduleCloudUpload()
+        }
+        cloud.listen(uid: uid) { [weak self] state in
+            Task { @MainActor in self?.applyRemote(state) }
+        }
+    }
+
+    private func applyRemote(_ state: CloudState) {
+        isApplyingRemote = true
+        kits = state.kits
+        homeSections = state.homeSections
+        plans = state.plans
+        wallpaper = state.wallpaper
+        crew = state.crew
+        isApplyingRemote = false
+    }
+
+    private func scheduleCloudUpload() {
+        guard let cloudUID, !isApplyingRemote else { return }
+        let state = CloudState(kits: kits, homeSections: homeSections, plans: plans, wallpaper: wallpaper, crew: crew)
+        cloud.upload(uid: cloudUID, state: state)
+    }
+
     // MARK: - 永続化
 
     private func save() {
         guard let data = try? JSONEncoder().encode(kits) else { return }
         UserDefaults.standard.set(data, forKey: kitsKey)
+        scheduleCloudUpload()
     }
 
     private static func load(key: String) -> [PackingKit]? {
@@ -368,6 +408,7 @@ final class AnchorStore: ObservableObject {
     private func saveLayout() {
         guard let data = try? JSONEncoder().encode(homeSections) else { return }
         UserDefaults.standard.set(data, forKey: layoutKey)
+        scheduleCloudUpload()
     }
 
     private static func loadLayout(key: String) -> [HomeSectionConfig]? {
@@ -379,6 +420,7 @@ final class AnchorStore: ObservableObject {
     private func savePlans() {
         guard let data = try? JSONEncoder().encode(plans) else { return }
         UserDefaults.standard.set(data, forKey: plansKey)
+        scheduleCloudUpload()
     }
 
     private static func loadPlans(key: String) -> [Voyage]? {
@@ -389,11 +431,13 @@ final class AnchorStore: ObservableObject {
 
     private func saveWallpaper() {
         UserDefaults.standard.set(wallpaper.rawValue, forKey: wallpaperKey)
+        scheduleCloudUpload()
     }
 
     private func saveCrew() {
         guard let data = try? JSONEncoder().encode(crew) else { return }
         UserDefaults.standard.set(data, forKey: crewKey)
+        scheduleCloudUpload()
     }
 
     private static func loadCrew(key: String) -> [Crewmate]? {
