@@ -4,13 +4,35 @@ import SwiftUI
 struct MyPageView: View {
     @ObservedObject var store: AnchorStore
     @ObservedObject var notifications: NotificationManager
+    @ObservedObject var social: SocialService
 
     @State private var showingSettings = false
     @State private var showingCustomize = false
+    @State private var showingProfile = false
 
     var body: some View {
         ScrollView {
             VStack(spacing: 14) {
+                // 自分の乗船証。タップで編集
+                Button {
+                    Haptics.tap()
+                    showingProfile = true
+                } label: {
+                    ProfileCardView(
+                        name: social.myName,
+                        colorIndex: social.myColorIndex,
+                        symbol: social.mySymbol,
+                        motto: social.myMotto,
+                        code: social.myCode
+                    )
+                }
+                .buttonStyle(.plain)
+
+                row(icon: "person.text.rectangle", title: "乗船証を編集",
+                    detail: "名前・配色・シンボル・言葉") {
+                    showingProfile = true
+                }
+
                 row(icon: "slider.horizontal.3", title: "ホームのカスタマイズ",
                     detail: "盤面の並び・大きさ・表示") {
                     showingCustomize = true
@@ -20,19 +42,16 @@ struct MyPageView: View {
                     showingSettings = true
                 }
 
-                Spacer(minLength: 60)
-
-                // ブランドの署名
-                VStack(spacing: 10) {
-                    AnchorLogo(size: 30)
+                // ブランドの署名(舵輪と重ならないよう控えめに)
+                HStack(spacing: 7) {
+                    AnchorLogo(size: 13, color: AnchorTheme.textSecondary)
                     Text("Anchor Up")
-                        .font(.anchorDisplay(18, weight: .bold))
-                        .foregroundStyle(AnchorTheme.textPrimary)
+                        .font(.anchorDisplay(12, weight: .semibold))
                     Text("ver \(appVersion)")
                         .font(.anchorBody(11))
-                        .foregroundStyle(AnchorTheme.textSecondary)
                 }
-                .padding(.bottom, 30)
+                .foregroundStyle(AnchorTheme.textSecondary)
+                .padding(.top, 18)
             }
             .padding(.horizontal, 20)
             .padding(.top, 24)
@@ -44,6 +63,9 @@ struct MyPageView: View {
         }
         .sheet(isPresented: $showingCustomize) {
             HomeCustomizeView(store: store)
+        }
+        .sheet(isPresented: $showingProfile) {
+            ProfileEditView(social: social)
         }
     }
 
@@ -91,7 +113,7 @@ struct MyPageView: View {
 #Preview {
     ZStack {
         AnchorTheme.background.ignoresSafeArea()
-        MyPageView(store: AnchorStore(), notifications: NotificationManager())
+        MyPageView(store: AnchorStore(), notifications: NotificationManager(), social: SocialService())
     }
     .preferredColorScheme(.dark)
 }

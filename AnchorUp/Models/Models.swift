@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - 乗組員(乗組員セクションのデモ用。将来の共有機能で本格利用)
 
@@ -177,6 +178,15 @@ enum CrewPalette {
     ]
     static func color(at index: Int) -> Color {
         all[((index % all.count) + all.count) % all.count]
+    }
+
+    /// その配色の上に載せて読みやすい前景色(明るい地は暗い字、暗い地は明るい字)
+    static func foreground(at index: Int) -> Color {
+        let ui = UIColor(color(at: index))
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        ui.getRed(&r, green: &g, blue: &b, alpha: &a)
+        let luminance = 0.299 * r + 0.587 * g + 0.114 * b
+        return luminance > 0.58 ? AnchorTheme.seaDeep : AnchorTheme.moonGlow
     }
 }
 

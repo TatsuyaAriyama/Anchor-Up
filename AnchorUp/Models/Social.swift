@@ -1,11 +1,72 @@
 import SwiftUI
 import FirebaseFirestore
 
+/// 乗船証に掲げるシンボル。錨だけは自前の図形で描く。
+enum ProfileSymbol: String, CaseIterable, Identifiable {
+    case anchor      // 錨(ブランドの印)
+    case helm        // 舵輪
+    case sailboat    // 帆船
+    case compass     // 羅針盤
+    case lifering    // 浮き輪
+    case moon        // 月と星
+    case waves       // 波
+    case island      // 島
+    case chart       // 海図
+    case flags       // 信号旗
+    case telescope   // 望遠鏡
+    case star        // 北極星
+
+    var id: String { rawValue }
+
+    /// SF Symbols 名(錨のみ nil = 自前描画)
+    var systemName: String? {
+        switch self {
+        case .anchor: nil
+        case .helm: "helm"
+        case .sailboat: "sailboat"
+        case .compass: "location.north.circle"
+        case .lifering: "lifepreserver"
+        case .moon: "moon.stars"
+        case .waves: "water.waves"
+        case .island: "mountain.2"
+        case .chart: "map"
+        case .flags: "flag.2.crossed"
+        case .telescope: "binoculars"
+        case .star: "star"
+        }
+    }
+
+    static func from(_ raw: String?) -> ProfileSymbol {
+        guard let raw, let s = ProfileSymbol(rawValue: raw) else { return .anchor }
+        return s
+    }
+}
+
+/// 乗船証のシンボルを描くビュー(錨は自前の図形)
+struct ProfileSymbolView: View {
+    let symbol: ProfileSymbol
+    var size: CGFloat = 24
+    var color: Color = AnchorTheme.textPrimary
+
+    var body: some View {
+        if let name = symbol.systemName {
+            Image(systemName: name)
+                .font(.system(size: size * 0.86, weight: .regular))
+                .foregroundStyle(color)
+                .frame(width: size, height: size)
+        } else {
+            AnchorLogo(size: size, color: color)
+        }
+    }
+}
+
 /// 連携した友達(実在ユーザー)。ローカル名簿のCrewmateとは別物。
 struct ConnectedFriend: Identifiable, Equatable {
     let uid: String
     var name: String
     var colorIndex: Int
+    var symbol: ProfileSymbol = .anchor
+    var motto: String = ""
 
     var id: String { uid }
     var initial: String { String(name.prefix(1)) }
@@ -21,6 +82,9 @@ final class SocialService: ObservableObject {
     /// 自分の表示名(友達に見える)
     @Published private(set) var myName: String = "船長"
     @Published private(set) var myColorIndex: Int = 0
+    /// 乗船証のシンボルと、掲げる言葉
+    @Published private(set) var mySymbol: ProfileSymbol = .anchor
+    @Published private(set) var myMotto: String = ""
     /// 連携した友達
     @Published private(set) var friends: [ConnectedFriend] = []
 
@@ -42,6 +106,8 @@ final class SocialService: ObservableObject {
             myCode = data["code"] as? String ?? ""
             myName = data["name"] as? String ?? "船長"
             myColorIndex = data["colorIndex"] as? Int ?? 0
+            mySymbol = ProfileSymbol.from(data["symbol"] as? String)
+            myMotto = data["motto"] as? String ?? ""
             if myCode.isEmpty { await createProfile(ref: ref, uid: uid) }
             return
         }
@@ -52,18 +118,56 @@ final class SocialService: ObservableObject {
         let code = Self.generateCode()
         let colorIndex = Int.random(in: 0..<CrewPalette.all.count)
         let name = "船長"
-        try? await ref.setData(["name": name, "code": code, "colorIndex": colorIndex])
+        try? await ref.setData([
+            "name": name, "code": code, "colorIndex": colorIndex,
+            "symbol": ProfileSymbol.anchor.rawValue, "motto": "",
+        ])
         try? await db.collection("codes").document(code).setData(["uid": uid])
         myCode = code
         myName = name
         myColorIndex = colorIndex
+        mySymbol = .anchor
+        myMotto = ""
     }
 
-    func rename(_ newName: String) async {
-        let trimmed = newName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let uid, !trimmed.isEmpty, trimmed != myName else { return }
-        myName = trimmed
-        try? await db.collection("profiles").document(uid).setData(["name": trimmed], merge: true)
+    /// 乗船証を更新する(名前・配色・シンボル・掲げる言葉)
+    func updateProfile(name: String, colorIndex: Int, symbol: ProfileSymbol, motto: String) async {
+        guard let uid else { return }
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedMotto = motto.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty { myName = trimmedName }
+        myColorIndex = colorIndex
+        mySymbol = symbol
+        myMotto = trimmedMotto
+
+        try? await db.collection("profiles").document(uid).setData([
+            "name": myName,
+            "colorIndex": colorIndex,
+            "symbol": symbol.rawValue,
+            "motto": trimmedMotto,
+        ], merge: true)
+
+        // 連携済みの相手にも新しい表示を届ける
+        await refreshMyProfileInConnections()
+    }
+
+    /// 自分が参加している connections の profiles を最新の乗船証で更新する
+    private func refreshMyProfileInConnections() async {
+        guard let uid else { return }
+        guard let snap = try? await db.collection("connections")
+            .whereField("members", arrayContains: uid).getDocuments() else { return }
+        for doc in snap.documents {
+            try? await doc.reference.setData([
+                "profiles": [
+                    uid: [
+                        "name": myName,
+                        "colorIndex": myColorIndex,
+                        "symbol": mySymbol.rawValue,
+                        "motto": myMotto,
+                    ],
+                ],
+            ], merge: true)
+        }
     }
 
     // MARK: - 連携
@@ -88,10 +192,17 @@ final class SocialService: ObservableObject {
         try? await db.collection("connections").document(pairID).setData([
             "members": [uid, friendUid],
             "profiles": [
-                uid: ["name": myName, "colorIndex": myColorIndex],
+                uid: [
+                    "name": myName,
+                    "colorIndex": myColorIndex,
+                    "symbol": mySymbol.rawValue,
+                    "motto": myMotto,
+                ],
                 friendUid: [
                     "name": pdata["name"] as? String ?? "船長",
                     "colorIndex": pdata["colorIndex"] as? Int ?? 0,
+                    "symbol": pdata["symbol"] as? String ?? ProfileSymbol.anchor.rawValue,
+                    "motto": pdata["motto"] as? String ?? "",
                 ],
             ],
             "createdAt": FieldValue.serverTimestamp(),
@@ -115,7 +226,9 @@ final class SocialService: ObservableObject {
                     result.append(ConnectedFriend(
                         uid: otherUid,
                         name: prof["name"] as? String ?? "船長",
-                        colorIndex: prof["colorIndex"] as? Int ?? 0
+                        colorIndex: prof["colorIndex"] as? Int ?? 0,
+                        symbol: ProfileSymbol.from(prof["symbol"] as? String),
+                        motto: prof["motto"] as? String ?? ""
                     ))
                 }
                 self.friends = result.sorted { $0.name < $1.name }

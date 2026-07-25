@@ -110,30 +110,19 @@ struct CrewView: View {
                 }
                 .buttonStyle(.plain)
             } else {
+                // 仲間の乗船証を横に並べる
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 12) {
                         ForEach(social.friends) { friend in
-                            VStack(spacing: 6) {
-                                ZStack {
-                                    Circle().fill(friend.color)
-                                    Text(friend.initial)
-                                        .font(.anchorHeading(20))
-                                        .foregroundStyle(AnchorTheme.textPrimary)
-                                    // 実在ユーザーの印
-                                    Image(systemName: "link")
-                                        .font(.system(size: 9, weight: .bold))
-                                        .foregroundStyle(AnchorTheme.seaDeep)
-                                        .padding(3)
-                                        .background(AnchorTheme.moonGlow, in: Circle())
-                                        .offset(x: 16, y: 16)
-                                }
-                                .frame(width: 50, height: 50)
-                                Text(friend.name)
-                                    .font(.anchorBody(11))
-                                    .foregroundStyle(AnchorTheme.textSecondary)
-                                    .lineLimit(1)
-                            }
-                            .frame(width: 62)
+                            ProfileCardView(
+                                name: friend.name,
+                                colorIndex: friend.colorIndex,
+                                symbol: friend.symbol,
+                                motto: friend.motto,
+                                code: nil,
+                                compact: true
+                            )
+                            .frame(width: 210)
                         }
                     }
                     .padding(.vertical, 2)

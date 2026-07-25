@@ -44,7 +44,7 @@ struct HomeView: View {
                 case .crew:
                     CrewView(store: store, social: social, share: share).transition(tabTransition)
                 case .myPage:
-                    MyPageView(store: store, notifications: notifications).transition(tabTransition)
+                    MyPageView(store: store, notifications: notifications, social: social).transition(tabTransition)
                 }
             }
             .animation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.38, dampingFraction: 0.86), value: selectedTab)

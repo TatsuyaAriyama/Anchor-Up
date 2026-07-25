@@ -5,8 +5,8 @@ struct ConnectView: View {
     @ObservedObject var social: SocialService
     @Environment(\.dismiss) private var dismiss
 
-    @State private var nameDraft = ""
     @State private var codeInput = ""
+    @State private var showingProfile = false
     @State private var message: (text: String, ok: Bool)?
     @State private var working = false
     @FocusState private var codeFocused: Bool
@@ -17,7 +17,7 @@ struct ConnectView: View {
                 AnchorTheme.background.ignoresSafeArea()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 22) {
-                        nameCard
+                        myCardSection
                         myCodeCard
                         joinCard
                     }
@@ -35,39 +35,31 @@ struct ConnectView: View {
                 }
             }
         }
-        .onAppear { nameDraft = social.myName }
+        .sheet(isPresented: $showingProfile) {
+            ProfileEditView(social: social)
+        }
     }
 
-    // MARK: - 自分の名前
+    // MARK: - 自分の乗船証
 
-    private var nameCard: some View {
+    private var myCardSection: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("あなたの名前")
+            Text("あなたの乗船証")
                 .font(.anchorHeading(13))
                 .foregroundStyle(AnchorTheme.textSecondary)
-            HStack(spacing: 10) {
-                TextField("例: ハルカ", text: $nameDraft)
-                    .font(.anchorBody(16))
-                    .foregroundStyle(AnchorTheme.textPrimary)
-                    .submitLabel(.done)
-                    .onSubmit { Task { await social.rename(nameDraft) } }
-                    .padding(14)
-                    .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                Button {
-                    Task { await social.rename(nameDraft) }
-                    Haptics.tap()
-                } label: {
-                    Text("保存")
-                        .font(.anchorHeading(14))
-                        .foregroundStyle(AnchorTheme.seaDeep)
-                        .padding(.horizontal, 16)
-                        .frame(height: 50)
-                        .background(AnchorTheme.hullTan, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                }
-                .buttonStyle(.plain)
-                .disabled(nameDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+
+            Button {
+                Haptics.tap()
+                showingProfile = true
+            } label: {
+                ProfileCardView(
+                    name: social.myName, colorIndex: social.myColorIndex,
+                    symbol: social.mySymbol, motto: social.myMotto, code: nil
+                )
             }
-            Text("友達の乗組員一覧にこの名前で表示されます。")
+            .buttonStyle(.plain)
+
+            Text("タップして名前・配色・シンボルを整えられます。この姿で友達に表示されます。")
                 .font(.anchorBody(11))
                 .foregroundStyle(AnchorTheme.textSecondary)
         }
