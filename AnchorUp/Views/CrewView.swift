@@ -3,15 +3,19 @@ import SwiftUI
 /// 乗組員タブ。次の航海の「船倉(みんなで分担する持ち物)」と、乗組員名簿を管理する。
 struct CrewView: View {
     @ObservedObject var store: AnchorStore
+    @ObservedObject var social: SocialService
     @State private var showingAddCrew = false
     @State private var editing: Crewmate?
     @State private var newHoldName = ""
+    @State private var showingConnect = false
     @FocusState private var holdFocused: Bool
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
                 header
+
+                connectedSection
 
                 if let plan = store.nextPlan {
                     HoldCard(store: store, plan: plan,
@@ -27,6 +31,9 @@ struct CrewView: View {
             .padding(.bottom, 190) // 舵輪ぶんの余白
         }
         .scrollIndicators(.hidden)
+        .sheet(isPresented: $showingConnect) {
+            ConnectView(social: social)
+        }
         .sheet(isPresented: $showingAddCrew) {
             CrewEditSheet(title: "乗組員を追加") { name, note in
                 if let mate = store.addCrew(name: name) {
@@ -57,6 +64,73 @@ struct CrewView: View {
             Text("船倉の分担と、仲間の名簿")
                 .font(.anchorBody(13))
                 .foregroundStyle(AnchorTheme.textSecondary)
+        }
+    }
+
+    // MARK: - つながっている仲間(実在ユーザー)
+
+    private var connectedSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                SectionHeader(title: "つながっている仲間")
+                Button {
+                    Haptics.tap()
+                    showingConnect = true
+                } label: {
+                    Label("友達とつながる", systemImage: "link.badge.plus")
+                        .font(.anchorHeading(13))
+                        .foregroundStyle(AnchorTheme.accent)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if social.friends.isEmpty {
+                Button {
+                    Haptics.tap()
+                    showingConnect = true
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "link")
+                            .foregroundStyle(AnchorTheme.hullTan)
+                        Text("招待コードを交換すると、予定を共有できます")
+                            .font(.anchorBody(13))
+                            .foregroundStyle(AnchorTheme.textPrimary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(16)
+                    .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+                }
+                .buttonStyle(.plain)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 14) {
+                        ForEach(social.friends) { friend in
+                            VStack(spacing: 6) {
+                                ZStack {
+                                    Circle().fill(friend.color)
+                                    Text(friend.initial)
+                                        .font(.anchorHeading(20))
+                                        .foregroundStyle(AnchorTheme.textPrimary)
+                                    // 実在ユーザーの印
+                                    Image(systemName: "link")
+                                        .font(.system(size: 9, weight: .bold))
+                                        .foregroundStyle(AnchorTheme.seaDeep)
+                                        .padding(3)
+                                        .background(AnchorTheme.moonGlow, in: Circle())
+                                        .offset(x: 16, y: 16)
+                                }
+                                .frame(width: 50, height: 50)
+                                Text(friend.name)
+                                    .font(.anchorBody(11))
+                                    .foregroundStyle(AnchorTheme.textSecondary)
+                                    .lineLimit(1)
+                            }
+                            .frame(width: 62)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
         }
     }
 
@@ -446,7 +520,7 @@ private struct CrewEditSheet: View {
 #Preview {
     ZStack {
         AnchorTheme.background.ignoresSafeArea()
-        CrewView(store: AnchorStore())
+        CrewView(store: AnchorStore(), social: SocialService())
     }
     .preferredColorScheme(.dark)
 }

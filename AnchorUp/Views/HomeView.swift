@@ -5,6 +5,7 @@ struct HomeView: View {
     @StateObject private var store = AnchorStore()
     @StateObject private var notifications = NotificationManager()
     @StateObject private var auth = AuthService()
+    @StateObject private var social = SocialService()
     @State private var selectedTab: AppTab = .home
     /// 舵の回転方向(+1: 順 / -1: 逆)。画面スライドの向きに使う
     @State private var navDirection: Double = 1
@@ -38,7 +39,7 @@ struct HomeView: View {
                     )
                     .transition(tabTransition)
                 case .crew:
-                    CrewView(store: store).transition(tabTransition)
+                    CrewView(store: store, social: social).transition(tabTransition)
                 case .myPage:
                     MyPageView(store: store, notifications: notifications).transition(tabTransition)
                 }
@@ -90,6 +91,7 @@ struct HomeView: View {
         .onChange(of: auth.uid) { _, uid in
             guard let uid else { return }
             Task { await store.connectCloud(uid: uid) }
+            Task { await social.start(uid: uid) }
         }
     }
 
