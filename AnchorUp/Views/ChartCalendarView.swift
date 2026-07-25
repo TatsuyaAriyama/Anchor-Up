@@ -3,7 +3,9 @@ import SwiftUI
 /// 航海図(カレンダー)。自分の予定と、招待した乗組員の色が海図の上に並ぶ。
 struct ChartCalendarView: View {
     @ObservedObject var store: AnchorStore
+    @ObservedObject var share: VoyageShareService
     var onEdit: (Voyage) -> Void = { _ in }
+    var onEditShared: (SharedVoyage) -> Void = { _ in }
     var onCreate: (Date) -> Void = { _ in }
 
     @State private var monthAnchor: Date = Date()
@@ -137,6 +139,7 @@ struct ChartCalendarView: View {
 
     private func dayCell(_ day: Date) -> some View {
         let plansToday = store.plans(on: day)
+        let sharedToday = share.voyages(on: day)
         let isToday = cal.isDateInToday(day)
         let isSelected = cal.isDate(day, inSameDayAs: selectedDay)
 
@@ -160,9 +163,9 @@ struct ChartCalendarView: View {
                         }
                     }
 
-                // 航海の印(あなた=アクセント、乗組員=各自の色)
+                // 航海の印(あなた=アクセント、仲間=各自の色)
                 HStack(spacing: 3) {
-                    ForEach(Array(dayDots(plansToday).prefix(4).enumerated()), id: \.offset) { _, color in
+                    ForEach(Array(dayDots(plansToday, sharedToday).prefix(4).enumerated()), id: \.offset) { _, color in
                         Circle().fill(color).frame(width: 5, height: 5)
                     }
                 }
@@ -174,15 +177,27 @@ struct ChartCalendarView: View {
         .buttonStyle(.plain)
     }
 
-    /// 日付セルに付ける点の色: 予定があれば「あなた」+ 招待乗組員の色
-    private func dayDots(_ plans: [Voyage]) -> [Color] {
-        guard !plans.isEmpty else { return [] }
+    /// 日付セルに付ける点の色。
+    /// 「あなた」=アクセント、ローカル名簿の乗組員と連携中の仲間はそれぞれの色。
+    private func dayDots(_ plans: [Voyage], _ sharedVoyages: [SharedVoyage]) -> [Color] {
+        guard !plans.isEmpty || !sharedVoyages.isEmpty else { return [] }
         var colors: [Color] = [AnchorTheme.accent] // あなた
-        var seen = Set<UUID>()
+
+        var seenMates = Set<UUID>()
         for plan in plans {
-            for mate in store.members(of: plan) where !seen.contains(mate.id) {
-                seen.insert(mate.id)
+            for mate in store.members(of: plan) where !seenMates.contains(mate.id) {
+                seenMates.insert(mate.id)
                 colors.append(mate.color)
+            }
+        }
+
+        // 共有航海に参加している仲間(実在ユーザー)
+        var seenUids = Set<String>()
+        let myUid = share.uid ?? ""
+        for voyage in sharedVoyages {
+            for uid in voyage.others(excluding: myUid) where !seenUids.contains(uid) {
+                seenUids.insert(uid)
+                colors.append(voyage.color(of: uid))
             }
         }
         return colors
@@ -191,25 +206,51 @@ struct ChartCalendarView: View {
     // MARK: - 凡例
 
     private var legend: some View {
-        // 今月の航海に登場する乗組員だけを凡例に出す
+        // 今月の航海に登場する仲間だけを凡例に出す
         let mates = monthMates()
-        return HStack(spacing: 14) {
-            legendItem(color: AnchorTheme.accent, name: "あなた")
-            ForEach(mates) { mate in
-                legendItem(color: mate.color, name: mate.name)
+        let friends = monthFriends()
+        return ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                legendItem(color: AnchorTheme.accent, name: "あなた")
+                ForEach(mates) { mate in
+                    legendItem(color: mate.color, name: mate.name)
+                }
+                ForEach(friends, id: \.uid) { friend in
+                    legendItem(color: friend.color, name: friend.name, linked: true)
+                }
             }
-            Spacer()
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 
-    private func legendItem(color: Color, name: String) -> some View {
+    private func legendItem(color: Color, name: String, linked: Bool = false) -> some View {
         HStack(spacing: 5) {
             Circle().fill(color).frame(width: 7, height: 7)
             Text(name)
                 .font(.anchorBody(11))
                 .foregroundStyle(AnchorTheme.textSecondary)
+            // 連携中の実在ユーザーの印
+            if linked {
+                Image(systemName: "link")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(AnchorTheme.seaShallow)
+            }
         }
+    }
+
+    /// 今月の共有航海に登場する仲間(実在ユーザー)
+    private func monthFriends() -> [(uid: String, name: String, color: Color)] {
+        guard let interval = cal.dateInterval(of: .month, for: monthAnchor) else { return [] }
+        let myUid = share.uid ?? ""
+        var seen = Set<String>()
+        var result: [(String, String, Color)] = []
+        for voyage in share.voyages where interval.contains(voyage.date) {
+            for uid in voyage.others(excluding: myUid) where !seen.contains(uid) {
+                seen.insert(uid)
+                result.append((uid, voyage.name(of: uid), voyage.color(of: uid)))
+            }
+        }
+        return result
     }
 
     private func monthMates() -> [Crewmate] {
@@ -229,6 +270,7 @@ struct ChartCalendarView: View {
 
     private var dayDetail: some View {
         let plansToday = store.plans(on: selectedDay)
+        let sharedToday = share.voyages(on: selectedDay)
         return VStack(alignment: .leading, spacing: 10) {
             Text(selectedDay.formatted(
                 Date.FormatStyle(locale: .init(identifier: "ja_JP")).month(.wide).day().weekday(.wide)
@@ -236,7 +278,15 @@ struct ChartCalendarView: View {
             .font(.anchorHeading(15))
             .foregroundStyle(AnchorTheme.textPrimary)
 
-            if plansToday.isEmpty {
+            // 共有航海(仲間と一緒の予定)
+            ForEach(sharedToday) { voyage in
+                Button { onEditShared(voyage) } label: {
+                    sharedRow(voyage)
+                }
+                .buttonStyle(.plain)
+            }
+
+            if plansToday.isEmpty && sharedToday.isEmpty {
                 Button {
                     onCreate(selectedDay)
                 } label: {
@@ -263,6 +313,70 @@ struct ChartCalendarView: View {
                 }
             }
         }
+    }
+
+    /// 共有航海の行。仲間のアバターとリンクの印を添える。
+    private func sharedRow(_ voyage: SharedVoyage) -> some View {
+        let myUid = share.uid ?? ""
+        let others = voyage.others(excluding: myUid)
+        return HStack(spacing: 12) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(AnchorTheme.seaShallow.opacity(0.45))
+                Image(systemName: voyage.isFinished ? "checkmark.seal" : "sailboat.fill")
+                    .font(.anchorBody(15))
+                    .foregroundStyle(AnchorTheme.moonGlow.opacity(0.9))
+            }
+            .frame(width: 40, height: 40)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(voyage.title)
+                        .font(.anchorHeading(15))
+                        .foregroundStyle(AnchorTheme.textPrimary)
+                        .lineLimit(1)
+                    Image(systemName: "link")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(AnchorTheme.seaShallow)
+                }
+                HStack(spacing: 8) {
+                    if voyage.hasTime {
+                        Text(voyage.date.formatted(
+                            Date.FormatStyle(locale: .init(identifier: "ja_JP")).hour().minute()
+                        ))
+                        .font(.anchorDisplay(12, weight: .semibold))
+                        .foregroundStyle(AnchorTheme.accent)
+                    }
+                    if !voyage.destination.isEmpty {
+                        Text(voyage.destination)
+                            .font(.anchorBody(12))
+                            .foregroundStyle(AnchorTheme.textSecondary)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
+            Spacer()
+
+            HStack(spacing: -7) {
+                ForEach(others.prefix(4), id: \.self) { uid in
+                    ZStack {
+                        Circle().fill(voyage.color(of: uid))
+                        Text(String(voyage.name(of: uid).prefix(1)))
+                            .font(.anchorHeading(11))
+                            .foregroundStyle(AnchorTheme.textPrimary)
+                    }
+                    .frame(width: 26, height: 26)
+                    .overlay(Circle().stroke(AnchorTheme.surface, lineWidth: 1.5))
+                }
+            }
+        }
+        .padding(12)
+        .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AnchorTheme.cornerMedium, style: .continuous)
+                .strokeBorder(AnchorTheme.seaShallow.opacity(0.35), lineWidth: 1)
+        )
     }
 
     private func planRow(_ plan: Voyage) -> some View {
@@ -341,7 +455,7 @@ private extension Array {
 #Preview {
     ZStack {
         AnchorTheme.background.ignoresSafeArea()
-        ChartCalendarView(store: AnchorStore())
+        ChartCalendarView(store: AnchorStore(), share: VoyageShareService())
     }
     .preferredColorScheme(.dark)
 }

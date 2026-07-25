@@ -1,9 +1,13 @@
 import SwiftUI
 
-/// 予定(航海)の作成・編集。plan が nil なら新規作成。
+/// 予定(航海)の作成・編集。plan / shared がどちらも nil なら新規作成。
+/// 連携した友達を招待すると「共有航海」に昇格し、双方の航海図に並ぶ。
 struct PlanEditView: View {
     @ObservedObject var store: AnchorStore
+    @ObservedObject var social: SocialService
+    @ObservedObject var share: VoyageShareService
     let plan: Voyage?
+    let shared: SharedVoyage?
 
     @Environment(\.dismiss) private var dismiss
     @FocusState private var titleFocused: Bool
@@ -14,21 +18,39 @@ struct PlanEditView: View {
     @State private var hasTime: Bool
     @State private var selectedKitIDs: Set<UUID>
     @State private var selectedCrewIDs: Set<UUID>
+    @State private var selectedFriendUids: Set<String>
     @State private var showingDeleteConfirm = false
 
-    init(store: AnchorStore, plan: Voyage?, defaultDate: Date? = nil) {
+    init(
+        store: AnchorStore,
+        social: SocialService,
+        share: VoyageShareService,
+        plan: Voyage? = nil,
+        shared: SharedVoyage? = nil,
+        defaultDate: Date? = nil
+    ) {
         self.store = store
+        self.social = social
+        self.share = share
         self.plan = plan
-        _title = State(initialValue: plan?.title ?? "")
-        _destination = State(initialValue: plan?.destination ?? "")
-        _date = State(initialValue: plan?.date ?? defaultDate ?? Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now)
-        _hasTime = State(initialValue: plan?.hasTime ?? false)
+        self.shared = shared
+
+        let fallbackDate = defaultDate ?? Calendar.current.date(byAdding: .day, value: 1, to: .now) ?? .now
+        _title = State(initialValue: shared?.title ?? plan?.title ?? "")
+        _destination = State(initialValue: shared?.destination ?? plan?.destination ?? "")
+        _date = State(initialValue: shared?.date ?? plan?.date ?? fallbackDate)
+        _hasTime = State(initialValue: shared?.hasTime ?? plan?.hasTime ?? false)
         _selectedKitIDs = State(initialValue: Set(plan?.linkedKitIDs ?? []))
         _selectedCrewIDs = State(initialValue: Set(plan?.memberIDs ?? []))
+        // 共有航海なら自分以外の参加者を初期選択に
+        let myUid = share.uid ?? ""
+        _selectedFriendUids = State(initialValue: Set(shared?.memberUids.filter { $0 != myUid } ?? []))
     }
 
-    private var isEditing: Bool { plan != nil }
+    private var isEditing: Bool { plan != nil || shared != nil }
     private var canSave: Bool { !title.trimmingCharacters(in: .whitespaces).isEmpty }
+    /// 共有航海として保存されるか
+    private var willBeShared: Bool { !selectedFriendUids.isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -38,8 +60,12 @@ struct PlanEditView: View {
                 List {
                     basicSection
                     scheduleSection
-                    kitsSection
-                    crewSection
+                    shareSection
+                    // 持ち物セット・ローカル名簿は自分の手元の予定にだけ紐づく
+                    if !willBeShared {
+                        kitsSection
+                        crewSection
+                    }
                     if isEditing { deleteSection }
                 }
                 .listStyle(.insetGrouped)
@@ -61,6 +87,7 @@ struct PlanEditView: View {
             }
             .confirmationDialog("この予定を削除しますか?", isPresented: $showingDeleteConfirm, titleVisibility: .visible) {
                 Button("削除", role: .destructive) {
+                    if let shared { share.delete(shared) }
                     if let plan { store.deletePlan(plan) }
                     dismiss()
                 }
@@ -68,6 +95,60 @@ struct PlanEditView: View {
             }
         }
         .onAppear { if !isEditing { titleFocused = true } }
+    }
+
+    // MARK: - 仲間と共有
+
+    private var shareSection: some View {
+        Section {
+            if social.friends.isEmpty {
+                Text("「乗組員」タブで招待コードを交換すると、この航海を仲間と共有できます。")
+                    .font(.anchorBody(13))
+                    .foregroundStyle(AnchorTheme.textSecondary)
+                    .listRowBackground(AnchorTheme.surface)
+            } else {
+                ForEach(social.friends) { friend in
+                    Button {
+                        toggleFriend(friend.uid)
+                        Haptics.tap()
+                    } label: {
+                        HStack(spacing: 12) {
+                            ZStack {
+                                Circle().fill(friend.color)
+                                Text(friend.initial)
+                                    .font(.anchorHeading(16))
+                                    .foregroundStyle(AnchorTheme.textPrimary)
+                            }
+                            .frame(width: 34, height: 34)
+                            Text(friend.name)
+                                .font(.anchorBody(16))
+                                .foregroundStyle(AnchorTheme.textPrimary)
+                            Spacer()
+                            Image(systemName: selectedFriendUids.contains(friend.uid) ? "checkmark.circle.fill" : "circle")
+                                .font(.anchorBody(20))
+                                .foregroundStyle(selectedFriendUids.contains(friend.uid) ? AnchorTheme.accent : AnchorTheme.textSecondary.opacity(0.6))
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(AnchorTheme.surface)
+                }
+            }
+        } header: {
+            Text("仲間と共有").foregroundStyle(AnchorTheme.textSecondary)
+        } footer: {
+            Text(willBeShared
+                 ? "共有航海になります。相手の航海図にも表示され、船倉の分担を一緒に決められます。"
+                 : "誰も選ばなければ、自分だけの予定として保存されます。")
+                .foregroundStyle(willBeShared ? AnchorTheme.accent : AnchorTheme.textSecondary)
+        }
+    }
+
+    private func toggleFriend(_ uid: String) {
+        if selectedFriendUids.contains(uid) {
+            selectedFriendUids.remove(uid)
+        } else {
+            selectedFriendUids.insert(uid)
+        }
     }
 
     // MARK: - 基本情報
@@ -249,6 +330,17 @@ struct PlanEditView: View {
 
     private func save() {
         guard canSave else { return }
+        if willBeShared {
+            saveShared()
+        } else {
+            saveLocal()
+        }
+        Haptics.soft()
+        dismiss()
+    }
+
+    /// 自分だけの予定として保存する
+    private func saveLocal() {
         // 元の並び順を保ちつつ、選択されたものだけ残す
         let orderedKitIDs = store.kits.map(\.id).filter { selectedKitIDs.contains($0) }
         let orderedCrewIDs = store.crew.map(\.id).filter { selectedCrewIDs.contains($0) }
@@ -257,12 +349,44 @@ struct PlanEditView: View {
         } else {
             store.addPlan(title: title, destination: destination, date: date, hasTime: hasTime, kitIDs: orderedKitIDs, memberIDs: orderedCrewIDs)
         }
-        Haptics.soft()
-        dismiss()
+        // 共有をやめた場合は、共有航海を取り下げる
+        if let shared { share.delete(shared) }
+    }
+
+    /// 仲間と共有する航海として保存する
+    private func saveShared() {
+        guard let myUid = share.uid else { return }
+        let memberUids = [myUid] + social.friends.map(\.uid).filter { selectedFriendUids.contains($0) }
+
+        // 表示用の名前・配色スナップショット
+        var names: [String: String] = [myUid: social.myName]
+        var colors: [String: Int] = [myUid: social.myColorIndex]
+        for friend in social.friends where selectedFriendUids.contains(friend.uid) {
+            names[friend.uid] = friend.name
+            colors[friend.uid] = friend.colorIndex
+        }
+
+        let voyage = SharedVoyage(
+            id: shared?.id ?? UUID().uuidString,
+            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            destination: destination.trimmingCharacters(in: .whitespacesAndNewlines),
+            date: date,
+            hasTime: hasTime,
+            ownerUid: shared?.ownerUid ?? myUid,
+            memberUids: memberUids,
+            memberNames: names,
+            memberColors: colors,
+            holdItems: shared?.holdItems ?? [],
+            completedAt: shared?.completedAt
+        )
+        share.save(voyage)
+
+        // ローカル予定から昇格した場合は、手元の重複を取り除く
+        if let plan { store.deletePlan(plan) }
     }
 }
 
 #Preview {
-    PlanEditView(store: AnchorStore(), plan: nil)
+    PlanEditView(store: AnchorStore(), social: SocialService(), share: VoyageShareService())
         .preferredColorScheme(.dark)
 }

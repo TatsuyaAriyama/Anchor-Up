@@ -4,11 +4,14 @@ import SwiftUI
 struct CrewView: View {
     @ObservedObject var store: AnchorStore
     @ObservedObject var social: SocialService
+    @ObservedObject var share: VoyageShareService
     @State private var showingAddCrew = false
     @State private var editing: Crewmate?
     @State private var newHoldName = ""
+    @State private var newSharedHoldName = ""
     @State private var showingConnect = false
     @FocusState private var holdFocused: Bool
+    @FocusState private var sharedHoldFocused: Bool
 
     var body: some View {
         ScrollView {
@@ -17,7 +20,12 @@ struct CrewView: View {
 
                 connectedSection
 
-                if let plan = store.nextPlan {
+                // 仲間と共有している航海があれば、そちらの船倉を優先して見せる
+                if let voyage = share.nextVoyage {
+                    SharedHoldCard(share: share, voyage: voyage,
+                                   newItemName: $newSharedHoldName,
+                                   focused: $sharedHoldFocused)
+                } else if let plan = store.nextPlan {
                     HoldCard(store: store, plan: plan,
                              newHoldName: $newHoldName, holdFocused: $holdFocused)
                 } else {
@@ -213,6 +221,194 @@ struct CrewView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - 共有航海の船倉(仲間とリアルタイムに分担)
+
+private struct SharedHoldCard: View {
+    @ObservedObject var share: VoyageShareService
+    let voyage: SharedVoyage
+    @Binding var newItemName: String
+    var focused: FocusState<Bool>.Binding
+
+    private var myUid: String { share.uid ?? "" }
+    private var assignedCount: Int { voyage.holdItems.filter(\.isAssigned).count }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // 見出し(共有中であることを明示)
+            HStack(spacing: 10) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(AnchorTheme.seaShallow.opacity(0.28))
+                    Image(systemName: "shippingbox.fill")
+                        .font(.anchorBody(16))
+                        .foregroundStyle(AnchorTheme.seaShallow)
+                }
+                .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("船倉")
+                            .font(.anchorHeading(16))
+                            .foregroundStyle(AnchorTheme.textPrimary)
+                        Image(systemName: "link")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(AnchorTheme.seaShallow)
+                    }
+                    Text("\(voyage.title) を \(voyage.others(excluding: myUid).count + 1)人で分担")
+                        .font(.anchorBody(12))
+                        .foregroundStyle(AnchorTheme.textSecondary)
+                }
+                Spacer()
+                if !voyage.holdItems.isEmpty {
+                    Text("\(assignedCount)/\(voyage.holdItems.count)")
+                        .font(.anchorDisplay(14, weight: .semibold))
+                        .foregroundStyle(assignedCount == voyage.holdItems.count ? AnchorTheme.accent : AnchorTheme.textSecondary)
+                }
+            }
+
+            if voyage.holdItems.isEmpty {
+                Text("テント・クーラーなど、誰か一人が持てば足りる物を積もう。仲間の画面にもすぐ届きます。")
+                    .font(.anchorBody(12))
+                    .foregroundStyle(AnchorTheme.textSecondary)
+                    .padding(.vertical, 4)
+            }
+
+            VStack(spacing: 8) {
+                ForEach(voyage.holdItems) { item in
+                    SharedHoldRow(share: share, voyage: voyage, item: item)
+                }
+                addRow
+            }
+
+            if !voyage.holdItems.isEmpty {
+                HStack {
+                    if assignedCount < voyage.holdItems.count {
+                        Label("\(voyage.holdItems.count - assignedCount)件が未定", systemImage: "exclamationmark.circle")
+                            .font(.anchorBody(12))
+                            .foregroundStyle(AnchorTheme.accent)
+                    } else {
+                        Label("分担が決まりました", systemImage: "checkmark.seal")
+                            .font(.anchorBody(12))
+                            .foregroundStyle(AnchorTheme.accent)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(16)
+        .background(AnchorTheme.surface, in: RoundedRectangle(cornerRadius: AnchorTheme.cornerLarge, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: AnchorTheme.cornerLarge, style: .continuous)
+                .strokeBorder(AnchorTheme.seaShallow.opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var addRow: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "plus.circle.fill")
+                .font(.anchorBody(20))
+                .foregroundStyle(AnchorTheme.accent)
+            TextField("船倉に積む(例: テント)", text: $newItemName)
+                .font(.anchorBody(15))
+                .foregroundStyle(AnchorTheme.textPrimary)
+                .focused(focused)
+                .submitLabel(.done)
+                .onSubmit(add)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(AnchorTheme.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func add() {
+        let trimmed = newItemName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        share.addHoldItem(to: voyage, name: trimmed)
+        newItemName = ""
+        Haptics.tap()
+        focused.wrappedValue = true
+    }
+}
+
+private struct SharedHoldRow: View {
+    @ObservedObject var share: VoyageShareService
+    let voyage: SharedVoyage
+    let item: SharedHoldItem
+
+    private var myUid: String { share.uid ?? "" }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: item.isAssigned ? "shippingbox.fill" : "shippingbox")
+                .font(.anchorBody(16))
+                .foregroundStyle(item.isAssigned ? AnchorTheme.hullTan : AnchorTheme.accent)
+                .frame(width: 26)
+
+            Text(item.name)
+                .font(.anchorBody(15))
+                .foregroundStyle(AnchorTheme.textPrimary)
+
+            Spacer()
+
+            Menu {
+                Button { assign(myUid) } label: { Label("あなた", systemImage: "person.fill") }
+                ForEach(voyage.others(excluding: myUid), id: \.self) { uid in
+                    Button { assign(uid) } label: { Text(voyage.name(of: uid)) }
+                }
+                Button { assign(nil) } label: { Label("未定にする", systemImage: "questionmark") }
+                Divider()
+                Button(role: .destructive) {
+                    withAnimation { share.deleteHoldItem(in: voyage, item: item) }
+                } label: {
+                    Label("船倉から降ろす", systemImage: "trash")
+                }
+            } label: {
+                chip
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(AnchorTheme.surfaceRaised, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var chip: some View {
+        if let uid = item.assigneeUid {
+            let isMe = uid == myUid
+            HStack(spacing: 6) {
+                ZStack {
+                    Circle().fill(isMe ? AnchorTheme.tileIndigo : voyage.color(of: uid))
+                    Text(isMe ? "あ" : String(voyage.name(of: uid).prefix(1)))
+                        .font(.anchorHeading(10))
+                        .foregroundStyle(AnchorTheme.textPrimary)
+                }
+                .frame(width: 22, height: 22)
+                Text(isMe ? "あなた" : voyage.name(of: uid))
+                    .font(.anchorBody(13))
+                    .foregroundStyle(AnchorTheme.textPrimary)
+            }
+            .padding(.leading, 4)
+            .padding(.trailing, 10)
+            .padding(.vertical, 4)
+            .background(AnchorTheme.background.opacity(0.5), in: Capsule())
+        } else {
+            Text("担当を決める")
+                .font(.anchorHeading(12))
+                .foregroundStyle(AnchorTheme.seaDeep)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(AnchorTheme.accent, in: Capsule())
+        }
+    }
+
+    private func assign(_ uid: String?) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            share.assignHold(in: voyage, item: item, to: uid)
+        }
+        Haptics.tap()
     }
 }
 
@@ -520,7 +716,7 @@ private struct CrewEditSheet: View {
 #Preview {
     ZStack {
         AnchorTheme.background.ignoresSafeArea()
-        CrewView(store: AnchorStore(), social: SocialService())
+        CrewView(store: AnchorStore(), social: SocialService(), share: VoyageShareService())
     }
     .preferredColorScheme(.dark)
 }

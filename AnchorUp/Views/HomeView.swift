@@ -6,6 +6,7 @@ struct HomeView: View {
     @StateObject private var notifications = NotificationManager()
     @StateObject private var auth = AuthService()
     @StateObject private var social = SocialService()
+    @StateObject private var share = VoyageShareService()
     @State private var selectedTab: AppTab = .home
     /// 舵の回転方向(+1: 順 / -1: 逆)。画面スライドの向きに使う
     @State private var navDirection: Double = 1
@@ -34,12 +35,14 @@ struct HomeView: View {
                 case .calendar:
                     ChartCalendarView(
                         store: store,
+                        share: share,
                         onEdit: { planEditTarget = .edit($0) },
+                        onEditShared: { planEditTarget = .editShared($0) },
                         onCreate: { planEditTarget = .create($0) }
                     )
                     .transition(tabTransition)
                 case .crew:
-                    CrewView(store: store, social: social).transition(tabTransition)
+                    CrewView(store: store, social: social, share: share).transition(tabTransition)
                 case .myPage:
                     MyPageView(store: store, notifications: notifications).transition(tabTransition)
                 }
@@ -66,9 +69,11 @@ struct HomeView: View {
         .sheet(item: $planEditTarget) { target in
             switch target {
             case .create(let defaultDate):
-                PlanEditView(store: store, plan: nil, defaultDate: defaultDate)
+                PlanEditView(store: store, social: social, share: share, defaultDate: defaultDate)
             case .edit(let plan):
-                PlanEditView(store: store, plan: plan)
+                PlanEditView(store: store, social: social, share: share, plan: plan)
+            case .editShared(let voyage):
+                PlanEditView(store: store, social: social, share: share, shared: voyage)
             }
         }
         .onAppear {
@@ -92,6 +97,7 @@ struct HomeView: View {
             guard let uid else { return }
             Task { await store.connectCloud(uid: uid) }
             Task { await social.start(uid: uid) }
+            share.start(uid: uid)
         }
     }
 
@@ -348,11 +354,14 @@ enum PlanEditTarget: Identifiable {
     /// 新規作成(日付の初期値を指定できる。航海図の空き日から)
     case create(Date?)
     case edit(Voyage)
+    /// 仲間と共有している航海の編集
+    case editShared(SharedVoyage)
 
     var id: String {
         switch self {
         case .create: "create"
         case .edit(let plan): plan.id.uuidString
+        case .editShared(let voyage): voyage.id
         }
     }
 }
